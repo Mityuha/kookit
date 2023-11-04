@@ -107,6 +107,12 @@ warn_unused_configs = true
 ignore_missing_imports = true
 disallow_incomplete_defs = true
 
+[tool.ruff]
+line-length = 99
+
+[tool.ruff.per-file-ignores]
+"__init__.py" = ["F401", "F403"]
+
 
 [tool.coverage]
 [tool.coverage.run]
