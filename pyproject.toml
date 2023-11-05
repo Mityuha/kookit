@@ -95,6 +95,7 @@ types-dataclasses = "*"
 sort-all = "*"
 tox = "*"
 faker = "^19.13.0"
+requests = "^2.31.0"
 
 [tool.pytest.ini_options]
 trio_mode = "true"
