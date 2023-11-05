@@ -46,7 +46,7 @@ class KookitHTTPHandler:
         if content != fcontent:
             return f"Expected body: '{content!r}', got: '{fcontent!r}'"
 
-        if dict(frequest.headers).items() < dict(request.headers).items():
+        if not all(it in frequest.headers.items() for it in request.headers.items()):
             return (
                 f"Expected headers present: {dict(request.headers)}, got: {dict(frequest.headers)}"
             )

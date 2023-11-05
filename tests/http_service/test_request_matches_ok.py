@@ -14,7 +14,6 @@ async def test_request_matches_ok(
     random_json_response: KookitJSONResponse,
     client: Any,
     kookit: Kookit,
-    faker: Any,
 ) -> None:
     service = KookitHTTPService()
 
