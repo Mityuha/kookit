@@ -1,6 +1,6 @@
 from typing import Any, Mapping, Optional
 
-from .http_response import KookitHTTPResponse
+from .response import KookitHTTPResponse
 
 
 class KookitJSONResponse(KookitHTTPResponse):

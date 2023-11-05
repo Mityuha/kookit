@@ -3,7 +3,7 @@ from typing import Final, List, Optional
 from fastapi import Response as FastAPIResponse
 from httpx import Response
 
-from ..responses import KookitHTTPCallback
+from ..http_responses import KookitHTTPCallback
 
 
 class KookitHTTPHandler:

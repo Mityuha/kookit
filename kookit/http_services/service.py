@@ -4,19 +4,33 @@ from fastapi import APIRouter
 from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
 
-from ..responses import KookitHTTPCallback, KookitHTTPResponse
-from .http_client_side import KookitHTTPClientSide
-from .http_handler import KookitHTTPCallbackRunner, KookitHTTPHandler
+from ..http_responses import KookitHTTPCallback, KookitHTTPResponse
+from .client_side import KookitHTTPClientSide
+from .handler import KookitHTTPCallbackRunner, KookitHTTPHandler
 
 
 class KookitHTTPService(KookitHTTPClientSide):
-    def __init__(self, url_env_var: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        url_env_var: Optional[str] = None,
+        *,
+        service_url: str = "",
+    ) -> None:
         self.url_env_var: Optional[str] = url_env_var
         self.router: Final[APIRouter] = APIRouter()
         self.ordered_handlers: List[KookitHTTPHandler] = []
         self.current_handler: int = 0
         self.initial_callbacks: Final[List[KookitHTTPCallback]] = []
+        self._service_url: str = service_url
         super().__init__(self.router)
+
+    @property
+    def service_url(self) -> str:
+        return self._service_url
+
+    @service_url.setter
+    def service_url(self, new_service_url: str) -> None:
+        self._service_url = new_service_url
 
     def ordered_actions(self, *actions: Union[KookitHTTPResponse, KookitHTTPCallback]) -> None:
         response_i: int = 0
@@ -66,7 +80,6 @@ class KookitHTTPService(KookitHTTPClientSide):
             url, method = h.r.request.url, h.r.request.method
             if (method, url) in unique_urls:
                 continue
-            print(">>> add method", url, method)
             self.router.add_api_route(
                 str(url),
                 self.__call__,

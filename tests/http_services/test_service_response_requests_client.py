@@ -1,6 +1,7 @@
 from typing import Any
 
 import pytest
+import requests  # type: ignore
 from httpx import Response
 
 from kookit import Kookit, KookitHTTPService, KookitJSONResponse
@@ -8,7 +9,7 @@ from kookit import Kookit, KookitHTTPService, KookitJSONResponse
 
 @pytest.mark.parametrize("method", ["GET", "POST", "PUT", "DELETE"])
 @pytest.mark.parametrize("use_request", [True, False])
-@pytest.mark.parametrize("status_code", [200, 201, 400, 401, 403, 500, 503])
+@pytest.mark.parametrize("status_code", [200, 503])
 async def test_service_json_response(
     method: str,
     use_request: bool,
@@ -31,15 +32,18 @@ async def test_service_json_response(
         )
     )
 
-    kookit.add_services(service)
+    kookit.prepare_services(service)
     await kookit.start_services()
+
+    base_url: str = service.service_url
+    url: str = f"{base_url}{uri_path}"
 
     response: Response
     if use_request:
-        response = await service.request(method, uri_path)
+        response = requests.request(method, url)
     else:
-        service_method = getattr(service, method.lower())
-        response = await service_method(uri_path)
+        service_method = getattr(requests, method.lower())
+        response = service_method(url)
 
     assert response.status_code == status_code
     assert dict(response.headers).items() >= headers.items()

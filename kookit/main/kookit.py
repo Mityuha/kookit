@@ -1,7 +1,10 @@
 import os
+import queue
+from contextlib import suppress
+from itertools import cycle
 from typing import Any, AsyncIterator, Final, List, Optional
 
-from multiprocess import Process
+from multiprocess import Process, Queue
 from pytest import fixture
 from pytest_mock import MockerFixture
 
@@ -10,21 +13,34 @@ from .server import KookitServer
 
 
 class Kookit:
+    server_port: Final[cycle] = cycle(i for i in range(29000, 30000))
+
     def __init__(self, mocker: MockerFixture) -> None:
         self.mocker: Final[MockerFixture] = mocker
-        self.server: Final[KookitServer] = KookitServer()
+        self.server_queue: Final[Queue] = Queue()
+        self.server: Final[KookitServer] = KookitServer(
+            self.server_queue,
+            port=next(self.server_port),
+        )
         self.services: Final[List[IKookitService]] = []
         self.server_process: Optional[Process] = None
 
-    def add_services(self, *services: IKookitService) -> None:
+    def prepare_services(self, *services: IKookitService) -> None:
         assert not self.services, "You can only add services only once"
+        for service in services:
+            if not service.service_url:
+                service.service_url = self.server.url
+
         self.services.extend(list(services))
         envs = {**os.environ}
-        envs.update({s.url_env_var: self.server.url for s in services if s.url_env_var})
+        envs.update({s.url_env_var: s.service_url for s in services if s.url_env_var})
         envs.update()
         self.mocker.patch.dict(os.environ, envs)
 
-    async def start_services(self) -> None:
+    async def start_services(
+        self,
+        wait_for_server_launch: Optional[float] = None,
+    ) -> None:
         assert not self.server_process
         self.server_process = Process(
             target=self.server.run,
@@ -34,12 +50,20 @@ class Kookit:
         for service in self.services:
             await service.run()
 
-    async def stop_services(self) -> None:
+        with suppress(queue.Empty):
+            assert self.server_queue.get(timeout=wait_for_server_launch)
+
+    async def stop_services(
+        self,
+        wait_for_server_stop: Optional[float] = 0.0,
+    ) -> None:
         if self.server_process:
             self.server_process.terminate()
             self.server_process = None
 
         self.services.clear()
+        with suppress(queue.Empty):
+            assert not self.server_queue.get(timeout=wait_for_server_stop)
 
     async def __aenter__(self) -> "Kookit":
         return self
