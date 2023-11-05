@@ -12,6 +12,7 @@ class KookitJSONResponse(KookitHTTPResponse):
         method: str = "GET",
         status_code: int = 200,
         headers: Optional[Mapping] = None,
+        **request_matchers: Any,
     ) -> None:
         super().__init__(
             json=json,
@@ -19,4 +20,5 @@ class KookitJSONResponse(KookitHTTPResponse):
             method=method,
             headers=headers,
             url=url,
+            **request_matchers,
         )

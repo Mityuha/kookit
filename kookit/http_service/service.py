@@ -1,3 +1,4 @@
+import urllib.parse
 from typing import Dict, Final, List, Optional, Tuple, Union
 
 from fastapi import APIRouter
@@ -80,7 +81,7 @@ class KookitHTTPService(KookitHTTPClientSide):
 
         for (method, url), handler in self.method_url_2_handler.items():
             self.router.add_api_route(
-                url,
+                urllib.parse.urlparse(url).path,
                 handler.__call__,
                 methods=[method],
             )

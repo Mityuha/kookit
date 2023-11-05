@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Final, List, Optional
+from urllib.parse import parse_qs, urlparse
 
 from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
@@ -40,6 +41,24 @@ class KookitHTTPHandler:
         frequest: FastAPIRequest,
         request: Request,
     ) -> str:
+        content = request.content
+        fcontent = await frequest.body()
+        if content != fcontent:
+            return f"Expected body: '{content!r}', got: '{fcontent!r}'"
+
+        if dict(frequest.headers).items() < dict(request.headers).items():
+            return (
+                f"Expected headers present: {dict(request.headers)}, got: {dict(frequest.headers)}"
+            )
+
+        parsed_url = urlparse(str(request.url))
+        parsed_furl = urlparse(str(frequest.url))
+
+        assert parsed_url.path == parsed_furl.path
+
+        if parsed_url.query and parse_qs(parsed_url.query) != parse_qs(parsed_furl.query):
+            return f"Expected query params: '{parsed_url.query}', got: '{parsed_furl.query}'"
+
         return ""
 
     async def __call__(self, request: FastAPIRequest) -> FastAPIResponse:
@@ -82,7 +101,7 @@ class KookitHTTPHandler:
         unused_responses: int = len(self.responses) - self.current_response.value
         assert (
             not unused_responses
-        ), f"Handler '{self.method} {self.url}: {unused_responses} unused responses left"
+        ), f"Handler '{self.method} {self.url}': {unused_responses} unused responses left"
 
 
 class KookitHTTPCallbackRunner:

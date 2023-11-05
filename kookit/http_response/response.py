@@ -1,6 +1,7 @@
 from typing import Any, Final, Mapping, Optional, Union
 
 from httpx import URL, Request, Response
+from httpx._types import HeaderTypes, QueryParamTypes, RequestContent, RequestData, RequestFiles
 
 
 class KookitHTTPResponse:
@@ -17,10 +18,23 @@ class KookitHTTPResponse:
         html: Optional[str] = None,
         json: Any = None,
         stream: Any = None,
+        # Request matchers here
+        request_params: Optional[QueryParamTypes] = None,
+        request_headers: Optional[HeaderTypes] = None,
+        request_content: Optional[RequestContent] = None,
+        request_data: Optional[RequestData] = None,
+        request_files: Optional[RequestFiles] = None,
+        request_json: Optional[Any] = None,
     ) -> None:
         request = Request(
             url=url,
             method=method,
+            params=request_params,
+            headers=request_headers,
+            content=request_content,
+            data=request_data,
+            files=request_files,
+            json=request_json,
         )
         self.response: Final[Response] = Response(
             status_code=status_code,
