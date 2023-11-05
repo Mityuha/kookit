@@ -1,10 +1,6 @@
-import urllib.parse
 from typing import Dict, Final, List, Optional, Tuple, Union
 
 from fastapi import APIRouter
-from fastapi import Request as FastAPIRequest
-from fastapi import Response as FastAPIResponse
-from fastapi.responses import JSONResponse
 
 from ..http_response import KookitHTTPCallback, KookitHTTPResponse
 from .client_side import KookitHTTPClientSide
@@ -86,21 +82,12 @@ class KookitHTTPService(KookitHTTPClientSide):
         for (method, url), handler in self.method_url_2_handler.items():
             self.router.add_api_route(
                 url,
-                self.__call__,
+                handler.__call__,
                 methods=[method],
             )
 
-    async def __call__(self, request: FastAPIRequest) -> FastAPIResponse:
-        method: str = request.method
-        url: str = urllib.parse.urlparse(str(request.url)).path
-        handler: Optional[KookitHTTPHandler] = self.method_url_2_handler.get((method, url))
-        if not handler:
-            return JSONResponse(
-                content={"error": f"Cannot find handler for request '{method} {url}'"},
-                status_code=404,
-            )
-
-        return await handler(request)
+    def clear_actions(self) -> None:
+        self.method_url_2_handler.clear()
 
     async def run(self) -> None:
         runner: KookitHTTPCallbackRunner = KookitHTTPCallbackRunner(self.initial_callbacks)
