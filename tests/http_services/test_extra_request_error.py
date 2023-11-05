@@ -19,7 +19,7 @@ async def test_extra_response_error(
 ) -> None:
     service = KookitHTTPService()
 
-    service.ordered_actions(
+    service.add_actions(
         KookitJSONResponse(
             random_resp_json,
             url=random_uri_path,
@@ -37,7 +37,7 @@ async def test_extra_response_error(
 
     response = client.request(random_method, url)
 
-    assert response.status_code == random_status_code
+    assert response.status_code == random_status_code, response.json()
     assert dict(response.headers).items() >= random_headers.items()
     assert response.json() == random_resp_json
 
