@@ -21,7 +21,7 @@ async def test_service_json_response(
     resp_json: dict = faker.pydict(value_types=(float, int, str))
     uri_path: str = f"/{faker.uri_path()}"
     headers: dict = faker.pydict(value_types=(str,))
-    service.ordered_actions(
+    service.add_actions(
         KookitJSONResponse(
             resp_json,
             url=uri_path,

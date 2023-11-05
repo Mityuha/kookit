@@ -6,7 +6,7 @@ from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
 from fastapi.responses import JSONResponse
 
-from ..http_responses import KookitHTTPCallback, KookitHTTPResponse
+from ..http_response import KookitHTTPCallback, KookitHTTPResponse
 from .client_side import KookitHTTPClientSide
 from .handler import KookitHTTPCallbackRunner, KookitHTTPHandler
 

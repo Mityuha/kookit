@@ -1,3 +1,3 @@
-from .http_responses import *
-from .http_services import *
+from .http_response import *
+from .http_service import *
 from .main import *
