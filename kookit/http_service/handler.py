@@ -46,7 +46,7 @@ class KookitHTTPHandler:
         if self.current_response.value >= len(self.responses):
             return JSONResponse(
                 content={
-                    "error": "Got an extra request for '{self.method} {self.url}', but no more responses left for requests"
+                    "error": f"Got an extra request for '{self.method} {self.url}', but no more responses left for requests"
                 },
                 status_code=418,
             )

@@ -47,9 +47,8 @@ class KookitHTTPService(KookitHTTPClientSide):
             if isinstance(action, KookitHTTPResponse) and not callbacks:
                 if current_response:
                     handlers.append(KookitHTTPHandler(current_response.response))
-                    current_response = None
-                else:
-                    current_response = action
+
+                current_response = action
             elif isinstance(action, KookitHTTPResponse) and callbacks:
                 assert current_response
                 handlers.append(
