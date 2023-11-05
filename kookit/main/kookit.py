@@ -26,7 +26,7 @@ class Kookit:
         self.server_process: Optional[Process] = None
 
     def prepare_services(self, *services: IKookitService) -> None:
-        assert not self.services, "You can only add services only once"
+        assert not self.services, "You can only add services once"
         for service in services:
             if not service.service_url:
                 service.service_url = self.server.url
