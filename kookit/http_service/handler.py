@@ -5,6 +5,7 @@ from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
 from fastapi.responses import JSONResponse
 from httpx import Request, Response
+from multiprocess import Value
 
 from ..http_response import KookitHTTPCallback
 
@@ -32,25 +33,24 @@ class KookitHTTPHandler:
                 callback_runner=KookitHTTPCallbackRunner(callbacks),
             )
         ]
-        self.current_response: int = 0
+        self.current_response: Value = Value("i", 0)
 
     @staticmethod
     async def compare_requests(
         frequest: FastAPIRequest,
         request: Request,
     ) -> str:
-        """Return diff."""
         return ""
 
     async def __call__(self, request: FastAPIRequest) -> FastAPIResponse:
-        if self.current_response >= len(self.responses):
+        if self.current_response.value >= len(self.responses):
             return JSONResponse(
                 content={
                     "error": "Got an extra request for '{self.method} {self.url}', but no more responses left for requests"
                 },
                 status_code=418,
             )
-        response_and_callbacks: ResponseWithCallbacks = self.responses[self.current_response]
+        response_and_callbacks: ResponseWithCallbacks = self.responses[self.current_response.value]
 
         diff: str = await self.compare_requests(
             request,
@@ -67,7 +67,9 @@ class KookitHTTPHandler:
             status_code=response.status_code,
         )
 
-        self.current_response += 1
+        with self.current_response.get_lock():
+            self.current_response.value += 1
+
         await response_and_callbacks.callback_runner.run_callbacks()
         return fastapi_response
 
@@ -75,6 +77,12 @@ class KookitHTTPHandler:
         assert self.url == other.url
         assert self.method == other.method
         self.responses.extend(other.responses)
+
+    def assert_completed(self) -> None:
+        unused_responses: int = len(self.responses) - self.current_response.value
+        assert (
+            not unused_responses
+        ), f"Handler '{self.method} {self.url}: {unused_responses} unused responses left"
 
 
 class KookitHTTPCallbackRunner:

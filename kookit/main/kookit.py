@@ -61,6 +61,9 @@ class Kookit:
             self.server_process.terminate()
             self.server_process = None
 
+        for service in self.services:
+            service.assert_completed()
+
         self.services.clear()
         with suppress(queue.Empty):
             assert not self.server_queue.get(timeout=wait_for_server_stop)
@@ -74,5 +77,5 @@ class Kookit:
 
 @fixture
 async def kookit(mocker: MockerFixture) -> AsyncIterator[Kookit]:
-    async with Kookit(mocker) as ko:
-        yield ko
+    async with Kookit(mocker) as kooky:
+        yield kooky

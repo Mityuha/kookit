@@ -99,6 +99,7 @@ requests = "^2.31.0"
 
 [tool.pytest.ini_options]
 trio_mode = "true"
+xfail_strict = "true"
 
 [tool.mypy]
 # https://mypy.readthedocs.io/en/stable/config_file.html

@@ -89,6 +89,10 @@ class KookitHTTPService(KookitHTTPClientSide):
     def clear_actions(self) -> None:
         self.method_url_2_handler.clear()
 
+    def assert_completed(self):
+        for handler in self.method_url_2_handler.values():
+            handler.assert_completed()
+
     async def run(self) -> None:
         runner: KookitHTTPCallbackRunner = KookitHTTPCallbackRunner(self.initial_callbacks)
         await runner.run_callbacks()

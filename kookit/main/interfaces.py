@@ -16,3 +16,6 @@ class IKookitService(Protocol):
 
     async def run(self) -> None:
         ...
+
+    def assert_completed(self) -> None:
+        ...
