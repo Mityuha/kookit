@@ -88,9 +88,8 @@ isort = "*"
 mypy = "^1.5.1"
 pre-commit = "*"
 pytest-cov = "*"
-pytest-trio = "*"
+pytest-asyncio = "*"
 autoflake = "*"
-trio = "*"
 types-dataclasses = "*"
 sort-all = "*"
 tox = "*"
@@ -98,7 +97,7 @@ faker = "^19.13.0"
 requests = "^2.31.0"
 
 [tool.pytest.ini_options]
-trio_mode = "true"
+asyncio_mode = "auto"
 xfail_strict = "true"
 
 [tool.mypy]
@@ -136,7 +135,6 @@ deps =
     pytest==7.0.1
     pytest-mock==3.6.1
     typing_extensions==4.1.1
-    pytest-trio==0.7.0
     types-dataclasses==0.6.6
 
     mypy==1.5.1
