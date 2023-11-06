@@ -40,7 +40,7 @@ async def test_handlers_merge_ok(
         ),
     )
 
-    kookit.prepare_services(service)
+    await kookit.prepare_services(service)
     await kookit.start_services()
 
     base_url: str = service.service_url

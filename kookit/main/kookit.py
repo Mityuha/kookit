@@ -28,7 +28,7 @@ class Kookit(KookitHTTPAsyncClient):
         self.server_process: Optional[Process] = None
         super().__init__()
 
-    def prepare_services(self, *services: IKookitService) -> None:
+    async def prepare_services(self, *services: IKookitService) -> None:
         assert not self.services, "You can only add services once"
         for service in services:
             if not service.service_url:
@@ -50,11 +50,16 @@ class Kookit(KookitHTTPAsyncClient):
             args=(self.services,),
         )
         self.server_process.start()
-        for service in self.services:
-            await service.run()
 
         with suppress(queue.Empty):
             assert self.server_queue.get(timeout=wait_for_server_launch)
+
+        for service in self.services:
+            await service.run()
+
+    async def assert_completed(self) -> None:
+        for service in self.services:
+            service.assert_completed()
 
     async def stop_services(
         self,
@@ -64,8 +69,7 @@ class Kookit(KookitHTTPAsyncClient):
             self.server_process.terminate()
             self.server_process = None
 
-        for service in self.services:
-            service.assert_completed()
+        await self.assert_completed()
 
         self.services.clear()
         with suppress(queue.Empty):

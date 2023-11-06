@@ -29,7 +29,7 @@ async def test_service_json_response(
         )
     )
 
-    kookit.prepare_services(service)
+    await kookit.prepare_services(service)
     await kookit.start_services()
 
     response: Response

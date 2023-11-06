@@ -43,6 +43,9 @@ class KookitHTTPService:
         self.service_name: Final[str] = service_name or self.__class__.__name__
         self.add_actions(*actions)
 
+    def __str__(self) -> str:
+        return f"[{self.service_name}]"
+
     def add_actions(self, *actions: Union[IKookitHTTPResponse, IKookitHTTPRequest]) -> None:
         response_i: int = 0
         for response_i, action in enumerate(actions):
@@ -60,7 +63,12 @@ class KookitHTTPService:
         for action in actions:
             if is_response(action) and not requests:
                 if current_response:
-                    handlers.append(KookitHTTPHandler(current_response.response))
+                    handlers.append(
+                        KookitHTTPHandler(
+                            current_response.response,
+                            service_name=self.service_name,
+                        )
+                    )
 
                 current_response = action
             elif is_response(action) and requests:
@@ -69,6 +77,7 @@ class KookitHTTPService:
                     KookitHTTPHandler(
                         current_response.response,
                         requests=requests,
+                        service_name=self.service_name,
                     )
                 )
                 current_response = None
@@ -81,6 +90,7 @@ class KookitHTTPService:
                 KookitHTTPHandler(
                     current_response.response,
                     requests=requests,
+                    service_name=self.service_name,
                 )
             )
             current_response = None
@@ -92,6 +102,8 @@ class KookitHTTPService:
             except KeyError:
                 self.method_url_2_handler[(method, url)] = handler
 
+        print(f"{self}: handlers {self.method_url_2_handler}")
+
         for (method, url), handler in self.method_url_2_handler.items():
             self.router.add_api_route(
                 urllib.parse.urlparse(url).path,
@@ -100,12 +112,16 @@ class KookitHTTPService:
             )
 
     def clear_actions(self) -> None:
+        print(f"{self}: clearing actions")
         self.method_url_2_handler.clear()
 
     def assert_completed(self) -> None:
         for handler in self.method_url_2_handler.values():
-            handler.assert_completed(self.service_name)
+            handler.assert_completed()
 
     async def run(self) -> None:
-        runner: KookitHTTPRequestRunner = KookitHTTPRequestRunner(self.initial_requests)
+        runner: KookitHTTPRequestRunner = KookitHTTPRequestRunner(
+            self.initial_requests,
+            service_name=self.service_name,
+        )
         await runner.run_requests()

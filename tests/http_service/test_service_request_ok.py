@@ -22,5 +22,5 @@ async def test_service_callback_to_yourself(
         random_json_response,
     )
 
-    kookit.prepare_services(service)
+    await kookit.prepare_services(service)
     await kookit.start_services()

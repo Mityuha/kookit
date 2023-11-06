@@ -13,7 +13,7 @@ from .request_runner import KookitHTTPRequestRunner
 
 
 @dataclass
-class ResponseWithCallbacks:
+class ReqRespRunner:
     request: Request
     response: Response
     request_runner: KookitHTTPRequestRunner
@@ -24,18 +24,30 @@ class KookitHTTPHandler:
         self,
         response: Response,
         *,
+        service_name: str,
         requests: Optional[List[IKookitHTTPRequest]] = None,
     ) -> None:
         self.url: Final[str] = str(response.request.url)
         self.method: Final[str] = response.request.method
-        self.responses: Final[List[ResponseWithCallbacks]] = [
-            ResponseWithCallbacks(
+        self.responses: Final[List[ReqRespRunner]] = [
+            ReqRespRunner(
                 request=response.request,
                 response=response,
-                request_runner=KookitHTTPRequestRunner(requests),
+                request_runner=KookitHTTPRequestRunner(
+                    requests,
+                    service_name=service_name,
+                ),
             )
         ]
         self.current_response: Value = Value("i", 0)
+        self.service_name: Final[str] = service_name
+
+    def __str__(self) -> str:
+        responses_left: int = len(self.responses) - self.current_response.value
+        return f"[{self.service_name}][{self.method}][{self.url}]: total: {len(self.responses)}, left: {responses_left}"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
     @staticmethod
     async def compare_requests(
@@ -64,22 +76,26 @@ class KookitHTTPHandler:
 
     async def __call__(self, request: FastAPIRequest) -> FastAPIResponse:
         if self.current_response.value >= len(self.responses):
+            print(f"{self}: No more responses left")
             return JSONResponse(
                 content={
                     "error": f"Got an extra request for '{self.method} {self.url}', but no more responses left for requests"
                 },
                 status_code=418,
             )
-        response_and_callbacks: ResponseWithCallbacks = self.responses[self.current_response.value]
+        info: ReqRespRunner = self.responses[self.current_response.value]
 
         diff: str = await self.compare_requests(
             request,
-            response_and_callbacks.request,
+            info.request,
         )
         if diff:
+            print("{self}: error: unexpected request: {diff}")
             return JSONResponse({"error": diff}, status_code=400)
 
-        response = response_and_callbacks.response
+        print(f"{self}: requests matched")
+
+        response = info.response
         fastapi_response: FastAPIResponse = FastAPIResponse(
             content=response.content,
             media_type=response.headers["content-type"],
@@ -90,7 +106,8 @@ class KookitHTTPHandler:
         with self.current_response.get_lock():
             self.current_response.value += 1
 
-        await response_and_callbacks.request_runner.run_requests()
+        print(f"{self}: running requests")
+        await info.request_runner.run_requests()
         return fastapi_response
 
     def merge(self, other: "KookitHTTPHandler") -> None:
@@ -98,8 +115,8 @@ class KookitHTTPHandler:
         assert self.method == other.method
         self.responses.extend(other.responses)
 
-    def assert_completed(self, service_name: str) -> None:
+    def assert_completed(self) -> None:
         unused_responses: int = len(self.responses) - self.current_response.value
         assert (
             not unused_responses
-        ), f"Handler '{service_name} {self.method} {self.url}': {unused_responses} unused responses left"
+        ), f"{self}: Handler '{self.method} {self.url}': {unused_responses} unused responses left"

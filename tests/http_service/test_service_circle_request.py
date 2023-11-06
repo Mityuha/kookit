@@ -100,7 +100,7 @@ async def test_service_circle_requests(
 ) -> None:
     request, service_1 = service1
 
-    kookit.prepare_services(service_1, service2[1], service3[1])
+    await kookit.prepare_services(service_1, service2[1], service3[1])
     await kookit.start_services()
 
     await kookit.request(
