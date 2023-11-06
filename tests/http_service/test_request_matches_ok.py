@@ -15,11 +15,7 @@ async def test_request_matches_ok(
     client: Any,
     kookit: Kookit,
 ) -> None:
-    service = KookitHTTPService()
-
-    service.add_actions(
-        random_json_response,
-    )
+    service = KookitHTTPService(actions=[random_json_response])
 
     await kookit.prepare_services(service)
     await kookit.start_services()

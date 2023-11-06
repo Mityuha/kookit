@@ -18,16 +18,16 @@ async def test_request_not_found(
     kookit: Kookit,
     faker: Any,
 ) -> None:
-    service = KookitHTTPService()
-
-    service.add_actions(
-        KookitJSONResponse(
-            random_resp_json,
-            url=random_uri_path,
-            method=random_method,
-            status_code=random_status_code,
-            headers=random_headers,
-        )
+    service = KookitHTTPService(
+        actions=[
+            KookitJSONResponse(
+                random_resp_json,
+                url=random_uri_path,
+                method=random_method,
+                status_code=random_status_code,
+                headers=random_headers,
+            )
+        ]
     )
 
     await kookit.prepare_services(service)

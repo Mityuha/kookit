@@ -18,26 +18,26 @@ async def test_handlers_merge_ok(
     kookit: Kookit,
     faker: Any,
 ) -> None:
-    service = KookitHTTPService()
-
     random_resp_json2: dict = faker.pydict(value_types=(str,))
     random_status_code2: int = 507
     random_headers2: dict = faker.pydict(value_types=(str,))
-    service.add_actions(
-        KookitJSONResponse(
-            random_resp_json,
-            url=random_uri_path,
-            method=random_method,
-            status_code=random_status_code,
-            headers=random_headers,
-        ),
-        KookitJSONResponse(
-            random_resp_json2,
-            url=random_uri_path,
-            method=random_method,
-            status_code=random_status_code2,
-            headers=random_headers2,
-        ),
+    service = KookitHTTPService(
+        actions=[
+            KookitJSONResponse(
+                random_resp_json,
+                url=random_uri_path,
+                method=random_method,
+                status_code=random_status_code,
+                headers=random_headers,
+            ),
+            KookitJSONResponse(
+                random_resp_json2,
+                url=random_uri_path,
+                method=random_method,
+                status_code=random_status_code2,
+                headers=random_headers2,
+            ),
+        ]
     )
 
     await kookit.prepare_services(service)

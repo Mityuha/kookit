@@ -17,19 +17,19 @@ async def test_service_json_response(
     faker: Any,
     kookit: Kookit,
 ) -> None:
-    service = KookitHTTPService()
-
     resp_json: dict = faker.pydict(value_types=(float, int, str))
     uri_path: str = f"/{faker.uri_path()}"
     headers: dict = faker.pydict(value_types=(str,))
-    service.add_actions(
-        KookitJSONResponse(
-            resp_json,
-            url=uri_path,
-            method=method,
-            status_code=status_code,
-            headers=headers,
-        )
+    service = KookitHTTPService(
+        actions=[
+            KookitJSONResponse(
+                resp_json,
+                url=uri_path,
+                method=method,
+                status_code=status_code,
+                headers=headers,
+            )
+        ]
     )
 
     await kookit.prepare_services(service)
