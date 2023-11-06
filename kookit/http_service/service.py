@@ -29,22 +29,29 @@ def is_request(
 class KookitHTTPService:
     def __init__(
         self,
-        url_env_var: Optional[str] = None,
+        url_env_var: str = "",
         *,
         service_url: str = "",
         actions: Iterable[Union[IKookitHTTPRequest, IKookitHTTPResponse]] = (),
+        routers: Iterable[APIRouter] = (),
         service_name: str = "",
     ) -> None:
-        self.url_env_var: Optional[str] = url_env_var
+        self.url_env_var: str = url_env_var
+        self.service_url: str = service_url
         self.router: Final[APIRouter] = APIRouter()
         self.method_url_2_handler: Final[Dict[Tuple[str, str], KookitHTTPHandler]] = {}
         self.initial_requests: Final[List[IKookitHTTPRequest]] = []
-        self.service_url: str = service_url
         self.service_name: Final[str] = service_name or self.__class__.__name__
+
+        self.add_routers(*routers)
         self.add_actions(*actions)
 
     def __str__(self) -> str:
         return f"[{self.service_name}]"
+
+    def add_routers(self, *routers: APIRouter) -> None:
+        for router in routers:
+            self.router.include_router(router)
 
     def add_actions(self, *actions: Union[IKookitHTTPResponse, IKookitHTTPRequest]) -> None:
         response_i: int = 0
