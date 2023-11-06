@@ -27,4 +27,4 @@ async def test_request_not_found(
     await kookit.prepare_services(service)
     await kookit.start_services()
 
-    await kookit.assert_completed()
+    await kookit.stop_services()

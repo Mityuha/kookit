@@ -127,7 +127,7 @@ class KookitHTTPService:
         logger.trace(f"{self}: clearing actions")
         self.method_url_2_handler.clear()
 
-    def unused_responses(self) -> list[Response]:
+    def unused_responses(self) -> List[Response]:
         unused_responses: list[Response] = []
         for handler in self.method_url_2_handler.values():
             unused_responses += handler.unused_responses()

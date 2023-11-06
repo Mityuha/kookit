@@ -1,4 +1,4 @@
-from typing import Any, Optional, Protocol
+from typing import Any, List, Optional, Protocol
 
 from fastapi import APIRouter
 
@@ -17,5 +17,5 @@ class IKookitService(Protocol):
     async def run(self) -> None:
         ...
 
-    def unused_responses(self) -> list[Any]:
+    def unused_responses(self) -> List[Any]:
         ...

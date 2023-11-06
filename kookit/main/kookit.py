@@ -82,7 +82,7 @@ class Kookit(KookitHTTPAsyncClient):
             assert not self.server_queue.get(timeout=wait_for_server_stop)
 
     @staticmethod
-    async def assert_completed(services: list[IKookitService]) -> None:
+    async def assert_completed(services: List[IKookitService]) -> None:
         service_unused_responses: dict = {
             service: service.unused_responses() for service in services
         }
