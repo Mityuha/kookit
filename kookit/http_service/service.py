@@ -1,5 +1,5 @@
 import urllib.parse
-from typing import Dict, Final, List, Optional, Tuple, Union
+from typing import Dict, Final, Iterable, List, Optional, Tuple, Union
 
 from fastapi import APIRouter
 from httpx import Request, Response
@@ -32,12 +32,16 @@ class KookitHTTPService:
         url_env_var: Optional[str] = None,
         *,
         service_url: str = "",
+        actions: Iterable[Union[IKookitHTTPRequest, IKookitHTTPResponse]] = (),
+        service_name: str = "",
     ) -> None:
         self.url_env_var: Optional[str] = url_env_var
         self.router: Final[APIRouter] = APIRouter()
         self.method_url_2_handler: Final[Dict[Tuple[str, str], KookitHTTPHandler]] = {}
         self.initial_requests: Final[List[IKookitHTTPRequest]] = []
         self.service_url: str = service_url
+        self.service_name: Final[str] = service_name or self.__class__.__name__
+        self.add_actions(*actions)
 
     def add_actions(self, *actions: Union[IKookitHTTPResponse, IKookitHTTPRequest]) -> None:
         response_i: int = 0
@@ -98,9 +102,9 @@ class KookitHTTPService:
     def clear_actions(self) -> None:
         self.method_url_2_handler.clear()
 
-    def assert_completed(self):
+    def assert_completed(self) -> None:
         for handler in self.method_url_2_handler.values():
-            handler.assert_completed()
+            handler.assert_completed(self.service_name)
 
     async def run(self) -> None:
         runner: KookitHTTPRequestRunner = KookitHTTPRequestRunner(self.initial_requests)

@@ -98,8 +98,8 @@ class KookitHTTPHandler:
         assert self.method == other.method
         self.responses.extend(other.responses)
 
-    def assert_completed(self) -> None:
+    def assert_completed(self, service_name: str) -> None:
         unused_responses: int = len(self.responses) - self.current_response.value
         assert (
             not unused_responses
-        ), f"Handler '{self.method} {self.url}': {unused_responses} unused responses left"
+        ), f"Handler '{service_name} {self.method} {self.url}': {unused_responses} unused responses left"
