@@ -4,11 +4,10 @@ from typing import Dict, Final, List, Optional, Tuple, Union
 from fastapi import APIRouter
 
 from ..http_response import KookitHTTPCallback, KookitHTTPResponse
-from .client_side import KookitHTTPClientSide
 from .handler import KookitHTTPCallbackRunner, KookitHTTPHandler
 
 
-class KookitHTTPService(KookitHTTPClientSide):
+class KookitHTTPService:
     def __init__(
         self,
         url_env_var: Optional[str] = None,
@@ -19,16 +18,7 @@ class KookitHTTPService(KookitHTTPClientSide):
         self.router: Final[APIRouter] = APIRouter()
         self.method_url_2_handler: Final[Dict[Tuple[str, str], KookitHTTPHandler]] = {}
         self.initial_callbacks: Final[List[KookitHTTPCallback]] = []
-        self._service_url: str = service_url
-        super().__init__(self.router)
-
-    @property
-    def service_url(self) -> str:
-        return self._service_url
-
-    @service_url.setter
-    def service_url(self, new_service_url: str) -> None:
-        self._service_url = new_service_url
+        self.service_url: str = service_url
 
     def add_actions(self, *actions: Union[KookitHTTPResponse, KookitHTTPCallback]) -> None:
         response_i: int = 0

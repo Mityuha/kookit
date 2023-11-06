@@ -6,13 +6,11 @@ from httpx import Response
 from kookit import Kookit, KookitHTTPService, KookitJSONResponse
 
 
-@pytest.mark.parametrize("method", ["GET", "POST", "PUT", "DELETE"])
 @pytest.mark.parametrize("use_request", [True, False])
-@pytest.mark.parametrize("status_code", [200, 201, 400, 401, 403, 500, 503])
 async def test_service_json_response(
-    method: str,
+    random_method: str,
     use_request: bool,
-    status_code: int,
+    random_status_code: int,
     faker: Any,
     kookit: Kookit,
 ) -> None:
@@ -25,22 +23,22 @@ async def test_service_json_response(
         KookitJSONResponse(
             resp_json,
             url=uri_path,
-            method=method,
-            status_code=status_code,
+            method=random_method,
+            status_code=random_status_code,
             headers=headers,
         )
     )
 
     kookit.prepare_services(service)
-    await kookit.start_services(0)
+    await kookit.start_services()
 
     response: Response
     if use_request:
-        response = await service.request(method, uri_path)
+        response = await kookit.request(service, random_method, uri_path)
     else:
-        service_method = getattr(service, method.lower())
-        response = await service_method(uri_path)
+        method = getattr(kookit, random_method.lower())
+        response = await method(service, uri_path)
 
-    assert response.status_code == status_code
+    assert response.status_code == random_status_code
     assert dict(response.headers).items() >= headers.items()
     assert response.json() == resp_json

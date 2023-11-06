@@ -8,11 +8,12 @@ from multiprocess import Process, Queue
 from pytest import fixture
 from pytest_mock import MockerFixture
 
+from .client_side import KookitHTTPAsyncClient
 from .interfaces import IKookitService
 from .server import KookitServer
 
 
-class Kookit:
+class Kookit(KookitHTTPAsyncClient):
     server_port: Final[cycle] = cycle(i for i in range(29000, 30000))
 
     def __init__(self, mocker: MockerFixture) -> None:
@@ -24,6 +25,7 @@ class Kookit:
         )
         self.services: Final[List[IKookitService]] = []
         self.server_process: Optional[Process] = None
+        super().__init__()
 
     def prepare_services(self, *services: IKookitService) -> None:
         assert not self.services, "You can only add services once"
