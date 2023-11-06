@@ -64,10 +64,6 @@ class Kookit(KookitHTTPAsyncClient):
         for service in self.services:
             await service.run()
 
-    async def assert_completed(self) -> None:
-        for service in self.services:
-            service.assert_completed()
-
     async def stop_services(
         self,
         wait_for_server_stop: Optional[float] = 0.0,
@@ -77,11 +73,23 @@ class Kookit(KookitHTTPAsyncClient):
             self.server_process.terminate()
             self.server_process = None
 
-        await self.assert_completed()
+        try:
+            await self.assert_completed(self.services)
+        finally:
+            self.services.clear()
 
-        self.services.clear()
         with suppress(queue.Empty):
             assert not self.server_queue.get(timeout=wait_for_server_stop)
+
+    @staticmethod
+    async def assert_completed(services: list[IKookitService]) -> None:
+        service_unused_responses: dict = {
+            service: service.unused_responses() for service in services
+        }
+        logger.debug(f"[kookit]: services' unused responses: {service_unused_responses}")
+        assert not any(
+            responses for responses in service_unused_responses.values()
+        ), service_unused_responses
 
     async def __aenter__(self) -> "Kookit":
         return self

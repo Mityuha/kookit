@@ -1,4 +1,4 @@
-from typing import Optional, Protocol
+from typing import Any, Optional, Protocol
 
 from fastapi import APIRouter
 
@@ -17,5 +17,5 @@ class IKookitService(Protocol):
     async def run(self) -> None:
         ...
 
-    def assert_completed(self) -> None:
+    def unused_responses(self) -> list[Any]:
         ...

@@ -116,8 +116,10 @@ class KookitHTTPHandler:
         assert self.method == other.method
         self.responses.extend(other.responses)
 
-    def assert_completed(self) -> None:
-        unused_responses: int = len(self.responses) - self.current_response.value
-        assert (
-            not unused_responses
-        ), f"{self}: Handler '{self.method} {self.url}': {unused_responses} unused responses left"
+    def unused_responses(self) -> List[Response]:
+        unused_responses = [
+            self.responses[i].response
+            for i in range(self.current_response.value, len(self.responses))
+        ]
+        logger.trace(f"{self}: {len(unused_responses)} unused responses: {unused_responses}")
+        return unused_responses
