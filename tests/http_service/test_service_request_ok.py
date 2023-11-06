@@ -24,5 +24,3 @@ async def test_service_callback_to_yourself(
 
     kookit.prepare_services(service)
     await kookit.start_services()
-
-    await kookit.wait(0.5)
