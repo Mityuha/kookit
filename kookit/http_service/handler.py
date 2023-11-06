@@ -8,14 +8,15 @@ from fastapi.responses import JSONResponse
 from httpx import Request, Response
 from multiprocess import Value
 
-from ..http_response import KookitHTTPCallback
+from .interfaces import IKookitHTTPRequest
+from .request_runner import KookitHTTPRequestRunner
 
 
 @dataclass
 class ResponseWithCallbacks:
     request: Request
     response: Response
-    callback_runner: "KookitHTTPCallbackRunner"
+    request_runner: KookitHTTPRequestRunner
 
 
 class KookitHTTPHandler:
@@ -23,7 +24,7 @@ class KookitHTTPHandler:
         self,
         response: Response,
         *,
-        callbacks: Optional[List[KookitHTTPCallback]] = None,
+        requests: Optional[List[IKookitHTTPRequest]] = None,
     ) -> None:
         self.url: Final[str] = str(response.request.url)
         self.method: Final[str] = response.request.method
@@ -31,7 +32,7 @@ class KookitHTTPHandler:
             ResponseWithCallbacks(
                 request=response.request,
                 response=response,
-                callback_runner=KookitHTTPCallbackRunner(callbacks),
+                request_runner=KookitHTTPRequestRunner(requests),
             )
         ]
         self.current_response: Value = Value("i", 0)
@@ -89,7 +90,7 @@ class KookitHTTPHandler:
         with self.current_response.get_lock():
             self.current_response.value += 1
 
-        await response_and_callbacks.callback_runner.run_callbacks()
+        await response_and_callbacks.request_runner.run_requests()
         return fastapi_response
 
     def merge(self, other: "KookitHTTPHandler") -> None:
@@ -102,14 +103,3 @@ class KookitHTTPHandler:
         assert (
             not unused_responses
         ), f"Handler '{self.method} {self.url}': {unused_responses} unused responses left"
-
-
-class KookitHTTPCallbackRunner:
-    def __init__(
-        self,
-        callbacks: Optional[List[KookitHTTPCallback]] = None,
-    ) -> None:
-        self.callbacks: Final[List[KookitHTTPCallback]] = callbacks or []
-
-    async def run_callbacks(self) -> None:
-        ...

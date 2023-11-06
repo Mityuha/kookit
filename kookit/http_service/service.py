@@ -2,9 +2,28 @@ import urllib.parse
 from typing import Dict, Final, List, Optional, Tuple, Union
 
 from fastapi import APIRouter
+from httpx import Request, Response
+from typing_extensions import TypeGuard
 
-from ..http_response import KookitHTTPCallback, KookitHTTPResponse
-from .handler import KookitHTTPCallbackRunner, KookitHTTPHandler
+from .handler import KookitHTTPHandler
+from .interfaces import IKookitHTTPRequest, IKookitHTTPResponse
+from .request_runner import KookitHTTPRequestRunner
+
+
+def is_response(
+    action: Union[IKookitHTTPResponse, IKookitHTTPRequest]
+) -> TypeGuard[IKookitHTTPResponse]:
+    return hasattr(action, "response") and isinstance(action.response, Response)
+
+
+def is_request(
+    action: Union[IKookitHTTPResponse, IKookitHTTPRequest]
+) -> TypeGuard[IKookitHTTPRequest]:
+    return (
+        hasattr(action, "request")
+        and isinstance(action.request, Request)
+        and hasattr(action, "service")
+    )
 
 
 class KookitHTTPService:
@@ -17,47 +36,47 @@ class KookitHTTPService:
         self.url_env_var: Optional[str] = url_env_var
         self.router: Final[APIRouter] = APIRouter()
         self.method_url_2_handler: Final[Dict[Tuple[str, str], KookitHTTPHandler]] = {}
-        self.initial_callbacks: Final[List[KookitHTTPCallback]] = []
+        self.initial_requests: Final[List[IKookitHTTPRequest]] = []
         self.service_url: str = service_url
 
-    def add_actions(self, *actions: Union[KookitHTTPResponse, KookitHTTPCallback]) -> None:
+    def add_actions(self, *actions: Union[IKookitHTTPResponse, IKookitHTTPRequest]) -> None:
         response_i: int = 0
         for response_i, action in enumerate(actions):
-            if isinstance(action, KookitHTTPCallback):
-                self.initial_callbacks.append(action)
+            if is_request(action):
+                self.initial_requests.append(action)
             else:
                 break
 
         handlers: List[KookitHTTPHandler] = []
-        current_response: Optional[KookitHTTPResponse] = None
-        callbacks: List[KookitHTTPCallback] = []
+        current_response: Optional[IKookitHTTPResponse] = None
+        requests: List[IKookitHTTPRequest] = []
 
         actions = actions[response_i:]
 
         for action in actions:
-            if isinstance(action, KookitHTTPResponse) and not callbacks:
+            if is_response(action) and not requests:
                 if current_response:
                     handlers.append(KookitHTTPHandler(current_response.response))
 
                 current_response = action
-            elif isinstance(action, KookitHTTPResponse) and callbacks:
+            elif is_response(action) and requests:
                 assert current_response
                 handlers.append(
                     KookitHTTPHandler(
                         current_response.response,
-                        callbacks=callbacks,
+                        requests=requests,
                     )
                 )
                 current_response = None
-                callbacks.clear()
-            elif isinstance(action, KookitHTTPCallback):
-                callbacks.append(action)
+                requests.clear()
+            elif is_request(action):
+                requests.append(action)
 
         if current_response:
             handlers.append(
                 KookitHTTPHandler(
                     current_response.response,
-                    callbacks=callbacks,
+                    requests=requests,
                 )
             )
             current_response = None
@@ -84,5 +103,5 @@ class KookitHTTPService:
             handler.assert_completed()
 
     async def run(self) -> None:
-        runner: KookitHTTPCallbackRunner = KookitHTTPCallbackRunner(self.initial_callbacks)
-        await runner.run_callbacks()
+        runner: KookitHTTPRequestRunner = KookitHTTPRequestRunner(self.initial_requests)
+        await runner.run_requests()

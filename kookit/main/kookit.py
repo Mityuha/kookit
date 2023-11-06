@@ -4,6 +4,7 @@ from contextlib import suppress
 from itertools import cycle
 from typing import Any, AsyncIterator, Final, List, Optional
 
+import anyio
 from multiprocess import Process, Queue
 from pytest import fixture
 from pytest_mock import MockerFixture
@@ -75,6 +76,9 @@ class Kookit(KookitHTTPAsyncClient):
 
     async def __aexit__(self, *_args: Any) -> None:
         await self.stop_services()
+
+    async def wait(self, seconds: float) -> None:
+        await anyio.sleep(seconds)
 
 
 @fixture
