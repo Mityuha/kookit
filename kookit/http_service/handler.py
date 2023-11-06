@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from httpx import Request, Response
 from multiprocess import Value
 
+from ..logging import logger
 from .interfaces import IKookitHTTPRequest
 from .request_runner import KookitHTTPRequestRunner
 
@@ -44,10 +45,10 @@ class KookitHTTPHandler:
 
     def __str__(self) -> str:
         responses_left: int = len(self.responses) - self.current_response.value
-        return f"[{self.service_name}][{self.method}][{self.url}]: total: {len(self.responses)}, left: {responses_left}"
+        return f"<Handler([{self.service_name}], '{self.method}', '{self.url}', total={len(self.responses)}, left={responses_left})>"
 
     def __repr__(self) -> str:
-        return self.__str__()
+        return str(self)
 
     @staticmethod
     async def compare_requests(
@@ -76,7 +77,7 @@ class KookitHTTPHandler:
 
     async def __call__(self, request: FastAPIRequest) -> FastAPIResponse:
         if self.current_response.value >= len(self.responses):
-            print(f"{self}: No more responses left")
+            logger.error(f"{self}: No more responses left")
             return JSONResponse(
                 content={
                     "error": f"Got an extra request for '{self.method} {self.url}', but no more responses left for requests"
@@ -90,10 +91,10 @@ class KookitHTTPHandler:
             info.request,
         )
         if diff:
-            print("{self}: error: unexpected request: {diff}")
+            logger.error("{self}: unexpected request: {diff}")
             return JSONResponse({"error": diff}, status_code=400)
 
-        print(f"{self}: requests matched")
+        logger.trace(f"{self}: requests matched")
 
         response = info.response
         fastapi_response: FastAPIResponse = FastAPIResponse(
@@ -106,7 +107,7 @@ class KookitHTTPHandler:
         with self.current_response.get_lock():
             self.current_response.value += 1
 
-        print(f"{self}: running requests")
+        logger.trace(f"{self}: running requests")
         await info.request_runner.run_requests()
         return fastapi_response
 

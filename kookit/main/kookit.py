@@ -9,6 +9,7 @@ from multiprocess import Process, Queue
 from pytest import fixture
 from pytest_mock import MockerFixture
 
+from ..logging import logger
 from .client_side import KookitHTTPAsyncClient
 from .interfaces import IKookitService
 from .server import KookitServer
@@ -28,7 +29,11 @@ class Kookit(KookitHTTPAsyncClient):
         self.server_process: Optional[Process] = None
         super().__init__()
 
+    def __str__(self) -> str:
+        return "[kookit]"
+
     async def prepare_services(self, *services: IKookitService) -> None:
+        logger.trace(f"{self}: preparing {len(services)} services: {services}")
         assert not self.services, "You can only add services once"
         for service in services:
             if not service.service_url:
@@ -49,11 +54,13 @@ class Kookit(KookitHTTPAsyncClient):
             target=self.server.run,
             args=(self.services,),
         )
+        logger.trace(f"{self}: starting server process")
         self.server_process.start()
 
         with suppress(queue.Empty):
             assert self.server_queue.get(timeout=wait_for_server_launch)
 
+        logger.trace(f"{self}: running services")
         for service in self.services:
             await service.run()
 
@@ -65,6 +72,7 @@ class Kookit(KookitHTTPAsyncClient):
         self,
         wait_for_server_stop: Optional[float] = 0.0,
     ) -> None:
+        logger.trace(f"{self}: stopping services")
         if self.server_process:
             self.server_process.terminate()
             self.server_process = None

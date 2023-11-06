@@ -2,6 +2,7 @@ from typing import Final, List, Optional
 
 from httpx import AsyncClient, RequestError
 
+from ..logging import logger
 from .interfaces import IKookitHTTPRequest
 
 
@@ -19,10 +20,10 @@ class KookitHTTPRequestRunner:
         return f"[{self.service_name}][Request]"
 
     async def run_requests(self) -> None:
-        print(f"{self}: running {len(self.requests)} requests")
+        logger.trace(f"{self}: running {len(self.requests)} requests")
         for req in self.requests:
             r = req.request
-            print(f"{self}: running request {r} ({req.service.service_url})")
+            logger.debug(f"{self}: running request {r} ({req.service.service_url})")
             async with AsyncClient(base_url=req.service.service_url) as client:
                 try:
                     response = await client.request(
@@ -32,6 +33,6 @@ class KookitHTTPRequestRunner:
                         headers=r.headers,
                     )
                 except (RequestError, Exception) as exc:
-                    print(f"{self}: error: cannot execute {r}: {exc}")
+                    logger.error(f"{self}: error: cannot execute {r}: {exc}")
                 else:
-                    print(f"{self}: request {r} successfully executed: {response}")
+                    logger.debug(f"{self}: request {r} successfully executed: {response}")

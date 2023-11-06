@@ -5,6 +5,7 @@ from fastapi import APIRouter
 from httpx import Request, Response
 from typing_extensions import TypeGuard
 
+from ..logging import logger
 from .handler import KookitHTTPHandler
 from .interfaces import IKookitHTTPRequest, IKookitHTTPResponse
 from .request_runner import KookitHTTPRequestRunner
@@ -48,6 +49,9 @@ class KookitHTTPService:
 
     def __str__(self) -> str:
         return f"[{self.service_name}]"
+
+    def __repr__(self) -> str:
+        return str(self)
 
     def add_routers(self, *routers: APIRouter) -> None:
         for router in routers:
@@ -109,17 +113,18 @@ class KookitHTTPService:
             except KeyError:
                 self.method_url_2_handler[(method, url)] = handler
 
-        print(f"{self}: handlers {self.method_url_2_handler}")
-
         for (method, url), handler in self.method_url_2_handler.items():
             self.router.add_api_route(
                 urllib.parse.urlparse(url).path,
                 handler.__call__,
                 methods=[method],
             )
+        logger.trace(
+            f"{self}: handlers {self.method_url_2_handler}, {len(self.initial_requests)} initial requests {self.initial_requests}"
+        )
 
     def clear_actions(self) -> None:
-        print(f"{self}: clearing actions")
+        logger.trace(f"{self}: clearing actions")
         self.method_url_2_handler.clear()
 
     def assert_completed(self) -> None:

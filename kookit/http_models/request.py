@@ -35,3 +35,9 @@ class KookitHTTPRequest:
             files=files,
             json=json,
         )
+
+    def __str__(self) -> str:
+        return f"<Request({self.service}, '{self.request.method}', '{self.request.url}')>"
+
+    def __repr__(self) -> str:
+        return str(self)
