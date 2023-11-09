@@ -13,6 +13,7 @@ class KookitJSONRequest(KookitHTTPRequest):
         method: str = "POST",
         headers: Optional[Mapping] = None,
         params: Optional[QueryParamTypes] = None,
+        request_delay: float = 0.0,
     ) -> None:
         super().__init__(
             service,
@@ -21,4 +22,5 @@ class KookitJSONRequest(KookitHTTPRequest):
             headers=headers,
             url=url,
             params=params,
+            request_delay=request_delay,
         )

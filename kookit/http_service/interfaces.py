@@ -23,3 +23,7 @@ class IKookitHTTPRequest(Protocol):
     @property
     def service(self) -> IKookitService:
         ...
+
+    @property
+    def request_delay(self) -> float:
+        ...

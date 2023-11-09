@@ -1,6 +1,7 @@
-from typing import Final, List, Optional
+import asyncio
+from typing import Any, Final, List, Optional
 
-from httpx import AsyncClient, RequestError, Response
+from httpx import AsyncClient, Response
 
 from ..logging import logger
 from .interfaces import IKookitHTTPRequest
@@ -19,24 +20,48 @@ class KookitHTTPRequestRunner:
     def __str__(self) -> str:
         return f"[{self.service_name}][Request]"
 
+    async def run_request(
+        self,
+        *,
+        base_url: str,
+        url: Any,
+        method: str,
+        content: bytes,
+        headers: Any,
+        request_delay: float,
+    ) -> Response:
+        logger.debug(f"{self}: running request <{method} {url}> ({base_url=}, {request_delay=}))")
+        await asyncio.sleep(request_delay)
+        async with AsyncClient(base_url=base_url) as client:
+            response = await client.request(
+                method=method,
+                url=url,
+                content=content,
+                headers=headers,
+            )
+
+        logger.debug(f"{self}: request <{method} {url}> successfully executed: {response}")
+        return response
+
     async def run_requests(self) -> List[Response]:
         logger.trace(f"{self}: running {len(self.requests)} requests")
-        responses: List[Response] = []
-        for req in self.requests:
-            r = req.request
-            logger.debug(f"{self}: running request {r} ({req.service.service_url})")
-            async with AsyncClient(base_url=req.service.service_url) as client:
-                try:
-                    response = await client.request(
-                        method=r.method,
-                        url=r.url,
-                        content=r.content,
-                        headers=r.headers,
-                    )
-                    responses.append(response)
-                except (RequestError, Exception) as exc:
-                    logger.error(f"{self}: error: cannot execute {r}: {exc}")
-                else:
-                    logger.debug(f"{self}: request {r} successfully executed: {response}")
+        responses: List[Response] = await asyncio.gather(
+            *[
+                self.run_request(
+                    base_url=req.service.service_url,
+                    url=req.request.url,
+                    method=req.request.method,
+                    content=req.request.content,
+                    headers=req.request.headers,
+                    request_delay=req.request_delay,
+                )
+                for req in self.requests
+            ],
+            return_exceptions=True,
+        )
 
-        return responses
+        for request, response in zip(self.requests, responses):
+            if isinstance(response, BaseException):
+                logger.error(f"{self}: error: cannot execute {request}: {response}")
+
+        return [r for r in responses if not isinstance(r, BaseException)]

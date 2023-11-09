@@ -23,6 +23,7 @@ class KookitHTTPRequest:
         data: Optional[RequestData] = None,
         files: Optional[RequestFiles] = None,
         json: Optional[Any] = None,
+        request_delay: float = 0.0,
     ) -> None:
         self.service: Final[IKookitService] = service
         self.request: Final[Request] = Request(
@@ -35,6 +36,7 @@ class KookitHTTPRequest:
             files=files,
             json=json,
         )
+        self.request_delay: Final[float] = request_delay
 
     def __str__(self) -> str:
         return f"<Request({self.service}, '{self.request.method}', '{self.request.url}')>"
