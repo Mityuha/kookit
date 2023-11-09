@@ -3,7 +3,7 @@ from typing import Any, Callable
 
 import pytest
 
-from kookit import KookitJSONResponse
+from kookit import KookitJSONRequest, KookitJSONResponse
 
 
 @pytest.fixture
@@ -51,7 +51,30 @@ def kookit_json_response_generator(faker: Any) -> Callable:
 
 
 @pytest.fixture
+def kookit_json_request_generator(faker: Any, mocker: Any) -> Callable:
+    def wrapper() -> KookitJSONRequest:
+        return KookitJSONRequest(
+            mocker.Mock(service_url="http://base.url"),
+            json=faker.pydict(
+                value_types=[int, str, float],
+            ),
+            method=choice(["GET", "POST", "PUT", "DELETE", "PATCH"]),
+            headers=faker.pydict(value_types=[str]),
+            params=choice([faker.pydict(3, value_types=(str,)), faker.pystr()]),
+        )
+
+    return wrapper
+
+
+@pytest.fixture
 def random_json_response(
     kookit_json_response_generator: Any,
 ) -> KookitJSONResponse:
     return kookit_json_response_generator()
+
+
+@pytest.fixture
+def random_json_request(
+    kookit_json_request_generator: Any,
+) -> KookitJSONResponse:
+    return kookit_json_request_generator()

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from typing import Final, List, Optional
-from urllib.parse import parse_qs, urlparse
 
 from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
@@ -11,6 +10,7 @@ from multiprocess import Value
 from ..logging import logger
 from .interfaces import IKookitHTTPRequest
 from .request_runner import KookitHTTPRequestRunner
+from .requests_diff import compare_requests
 
 
 @dataclass
@@ -50,31 +50,6 @@ class KookitHTTPHandler:
     def __repr__(self) -> str:
         return str(self)
 
-    @staticmethod
-    async def compare_requests(
-        frequest: FastAPIRequest,
-        request: Request,
-    ) -> str:
-        content = request.content
-        fcontent = await frequest.body()
-        if content != fcontent:
-            return f"Expected body: '{content!r}', got: '{fcontent!r}'"
-
-        if not all(it in frequest.headers.items() for it in request.headers.items()):
-            return (
-                f"Expected headers present: {dict(request.headers)}, got: {dict(frequest.headers)}"
-            )
-
-        parsed_url = urlparse(str(request.url))
-        parsed_furl = urlparse(str(frequest.url))
-
-        assert parsed_url.path == parsed_furl.path
-
-        if parsed_url.query and parse_qs(parsed_url.query) != parse_qs(parsed_furl.query):
-            return f"Expected query params: '{parsed_url.query}', got: '{parsed_furl.query}'"
-
-        return ""
-
     async def __call__(self, request: FastAPIRequest) -> FastAPIResponse:
         if self.current_response.value >= len(self.responses):
             logger.error(f"{self}: No more responses left")
@@ -86,7 +61,7 @@ class KookitHTTPHandler:
             )
         info: ReqRespRunner = self.responses[self.current_response.value]
 
-        diff: str = await self.compare_requests(
+        diff: str = await compare_requests(
             request,
             info.request,
         )
