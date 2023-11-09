@@ -1,11 +1,12 @@
 import urllib.parse
-from typing import Dict, Final, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Final, Iterable, List, Tuple, Union
 
 from fastapi import APIRouter
 from httpx import Request, Response
 from typing_extensions import TypeGuard
 
 from ..logging import logger
+from .actions_parser import groupby_actions, initial_requests
 from .handler import KookitHTTPHandler
 from .interfaces import IKookitHTTPRequest, IKookitHTTPResponse
 from .request_runner import KookitHTTPRequestRunner
@@ -58,53 +59,17 @@ class KookitHTTPService:
             self.router.include_router(router)
 
     def add_actions(self, *actions: Union[IKookitHTTPResponse, IKookitHTTPRequest]) -> None:
-        response_i: int = 0
-        for response_i, action in enumerate(actions):
-            if is_request(action):
-                self.initial_requests.append(action)
-            else:
-                break
+        self.initial_requests.extend(initial_requests(*actions))
+        grouped_actions: List = groupby_actions(*actions)
 
-        handlers: List[KookitHTTPHandler] = []
-        current_response: Optional[IKookitHTTPResponse] = None
-        requests: List[IKookitHTTPRequest] = []
-
-        actions = actions[response_i:]
-
-        for action in actions:
-            if is_response(action) and not requests:
-                if current_response:
-                    handlers.append(
-                        KookitHTTPHandler(
-                            current_response.response,
-                            service_name=self.service_name,
-                        )
-                    )
-
-                current_response = action
-            elif is_response(action) and requests:
-                assert current_response
-                handlers.append(
-                    KookitHTTPHandler(
-                        current_response.response,
-                        requests=requests,
-                        service_name=self.service_name,
-                    )
-                )
-                current_response = None
-                requests.clear()
-            elif is_request(action):
-                requests.append(action)
-
-        if current_response:
-            handlers.append(
-                KookitHTTPHandler(
-                    current_response.response,
-                    requests=requests,
-                    service_name=self.service_name,
-                )
+        handlers: Iterable[KookitHTTPHandler] = (
+            KookitHTTPHandler(
+                resp.response,
+                service_name=self.service_name,
+                requests=requests,
             )
-            current_response = None
+            for (resp, requests) in grouped_actions
+        )
 
         for handler in handlers:
             url, method = handler.url, handler.method
