@@ -1,21 +1,20 @@
-from typing import Any, List, Optional, Protocol
+from typing import Any, Iterable, Protocol
 
-from fastapi import APIRouter
+from pytest_mock import MockerFixture
 
 
-class IKookitService(Protocol):
-    service_url: str
+UnfitService = Any
 
-    @property
-    def url_env_var(self) -> Optional[str]:
+
+class IKookit(Protocol):
+    def __init__(self, mocker: MockerFixture) -> None:
         ...
 
-    @property
-    def router(self) -> APIRouter:
+    async def prepare_services(self, *services: Any) -> Iterable[UnfitService]:
         ...
 
-    async def run(self) -> None:
+    async def start_services(self, **_kwargs: Any) -> None:
         ...
 
-    def unused_responses(self) -> List[Any]:
+    async def stop_services(self, **_kwargs: Any) -> None:
         ...
