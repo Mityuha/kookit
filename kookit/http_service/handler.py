@@ -66,7 +66,7 @@ class KookitHTTPHandler:
             info.request,
         )
         if diff:
-            logger.error("{self}: unexpected request: {diff}")
+            logger.error(f"{self}: unexpected request: {diff}")
             return JSONResponse({"error": diff}, status_code=400)
 
         logger.trace(f"{self}: requests matched")
