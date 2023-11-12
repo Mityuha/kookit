@@ -14,6 +14,7 @@ async def compare_requests(
         return f"Expected body: '{content!r}', got: '{fcontent!r}'"
 
     # TODO. Maybe, class other than Request required
+    # see tests/http_service/test_diff_headers_and_path_template_response.py
     # if not all(it in frequest.headers.items() for it in request.headers.items()):
     #     return f"Expected headers present: {dict(request.headers)}, got: {dict(frequest.headers)}"
 
@@ -21,6 +22,7 @@ async def compare_requests(
     parsed_furl = urlparse(str(frequest.url))
 
     # TODO: Need to check path without params
+    # see tests/http_service/test_diff_headers_and_path_template_response.py
     # Because /catalog/{id} != /catalog/2
     # assert parsed_url.path == parsed_furl.path
 
