@@ -10,7 +10,7 @@ async def compare_requests(
 ) -> str:
     content = request.content
     fcontent = await frequest.body()
-    if content != fcontent:
+    if content and content != fcontent:
         return f"Expected body: '{content!r}', got: '{fcontent!r}'"
 
     if not all(it in frequest.headers.items() for it in request.headers.items()):
