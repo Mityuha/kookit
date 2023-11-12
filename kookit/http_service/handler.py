@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Final, List, Optional
+from urllib.parse import unquote
 
 from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
@@ -28,7 +29,8 @@ class KookitHTTPHandler:
         service_name: str,
         requests: Optional[List[IKookitHTTPRequest]] = None,
     ) -> None:
-        self.url: Final[str] = str(response.request.url)
+        # TODO: source url is needed here, not request.url
+        self.url: Final[str] = unquote(str(response.request.url))
         self.method: Final[str] = response.request.method
         self.responses: Final[List[ReqRespRunner]] = [
             ReqRespRunner(
