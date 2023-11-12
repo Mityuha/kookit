@@ -1,4 +1,5 @@
-from typing import Any, AsyncIterator, Final, Iterable, List, Optional
+import os
+from typing import Any, AsyncIterator, Final, Iterable, List, Mapping, Optional
 
 import anyio
 from pytest import fixture
@@ -55,6 +56,9 @@ class Kookit(KookitHTTPAsyncClient):
 
     async def wait(self, seconds: float) -> None:
         await anyio.sleep(seconds)
+
+    async def patch_env(self, new_env: Mapping[str, str]) -> None:
+        self.mocker.patch.dict(os.environ, new_env)
 
 
 @fixture
