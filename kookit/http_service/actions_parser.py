@@ -1,7 +1,6 @@
 from itertools import groupby
 from typing import Any, List, Tuple, Union
 
-from httpx import Request, Response
 from typing_extensions import TypeGuard
 
 from .interfaces import IKookitHTTPRequest, IKookitHTTPResponse
@@ -10,17 +9,13 @@ from .interfaces import IKookitHTTPRequest, IKookitHTTPResponse
 def is_response(
     action: Union[IKookitHTTPResponse, IKookitHTTPRequest]
 ) -> TypeGuard[IKookitHTTPResponse]:
-    return hasattr(action, "response") and isinstance(action.response, Response)
+    return hasattr(action, "request") and isinstance(action, IKookitHTTPResponse)
 
 
 def is_request(
     action: Union[IKookitHTTPResponse, IKookitHTTPRequest]
 ) -> TypeGuard[IKookitHTTPRequest]:
-    return (
-        hasattr(action, "request")
-        and isinstance(action.request, Request)
-        and hasattr(action, "service")
-    )
+    return isinstance(action, IKookitHTTPRequest) and hasattr(action, "service")
 
 
 def initial_requests(
@@ -46,6 +41,7 @@ def groupby_actions(
         response_i += 1
 
     def action_key(action: Any) -> int:
+        print(">>>", action)
         assert is_response(action) or is_request(action)
         return is_response(action)
 

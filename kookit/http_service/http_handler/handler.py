@@ -1,40 +1,37 @@
 from dataclasses import dataclass
 from typing import Final, List, Optional
-from urllib.parse import unquote
 
 from fastapi import Request as FastAPIRequest
 from fastapi import Response as FastAPIResponse
 from fastapi.responses import JSONResponse
-from httpx import Request, Response
+from httpx import URL
 from multiprocess import Value
 
-from ..logging import logger
-from .interfaces import IKookitHTTPRequest
-from .request_runner import KookitHTTPRequestRunner
-from .requests_diff import compare_requests
+from kookit.logging import logger
+from ..interfaces import IKookitHTTPRequest
+from ..interfaces import IKookitHTTPResponse as IResponse
+from ..request_runner import KookitHTTPRequestRunner
+from ..requests_diff import compare_requests
 
 
 @dataclass
 class ReqRespRunner:
-    request: Request
-    response: Response
+    response: IResponse
     request_runner: KookitHTTPRequestRunner
 
 
 class KookitHTTPHandler:
     def __init__(
         self,
-        response: Response,
+        response: IResponse,
         *,
         service_name: str,
         requests: Optional[List[IKookitHTTPRequest]] = None,
     ) -> None:
-        # TODO: source url is needed here, not request.url
-        self.url: Final[str] = unquote(str(response.request.url))
+        self.url: Final[URL] = response.request.url
         self.method: Final[str] = response.request.method
         self.responses: Final[List[ReqRespRunner]] = [
             ReqRespRunner(
-                request=response.request,
                 response=response,
                 request_runner=KookitHTTPRequestRunner(
                     requests,
@@ -65,7 +62,7 @@ class KookitHTTPHandler:
 
         diff: str = await compare_requests(
             request,
-            info.request,
+            info.response.request,
         )
         if diff:
             logger.error(f"{self}: unexpected request: {diff}")
@@ -93,7 +90,7 @@ class KookitHTTPHandler:
         assert self.method == other.method
         self.responses.extend(other.responses)
 
-    def unused_responses(self) -> List[Response]:
+    def unused_responses(self) -> List[IResponse]:
         unused_responses = [
             self.responses[i].response
             for i in range(self.current_response.value, len(self.responses))

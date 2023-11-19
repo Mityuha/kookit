@@ -1,9 +1,8 @@
 from typing import Any, List, Tuple
 
 import pytest
-from httpx import Request, Response
 
-from kookit import groupby_actions, initial_requests
+from kookit import KookitHTTPRequest, KookitHTTPResponse, groupby_actions, initial_requests
 
 
 class Comparable:
@@ -17,17 +16,16 @@ class Comparable:
         return f"{self.__class__.__name__}({self.number})"
 
 
-class Req(Comparable):
+class Req(Comparable, KookitHTTPRequest):
     def __init__(self, number: int) -> None:
-        self.request = Request(method="GET", url="/")
-        self.service = None
-        super().__init__(number)
+        Comparable.__init__(self, number)
+        KookitHTTPRequest.__init__(self, None, url="/", method="GET")  # type: ignore
 
 
-class Resp(Comparable):
+class Resp(Comparable, KookitHTTPResponse):
     def __init__(self, number: int) -> None:
-        self.response = Response(status_code=200)
-        super().__init__(number)
+        Comparable.__init__(self, number)
+        KookitHTTPResponse.__init__(self, url="/", method="POST")
 
 
 @pytest.mark.parametrize(

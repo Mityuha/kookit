@@ -1,7 +1,16 @@
+from dataclasses import dataclass
 from typing import Any, Final, Mapping, Optional, Union
 
 from httpx import URL, Request, Response
 from httpx._types import HeaderTypes, QueryParamTypes, RequestContent, RequestData, RequestFiles
+
+
+@dataclass
+class KookitResponseRequest:
+    content: bytes
+    headers: Optional[Mapping[str, str]]
+    url: URL
+    method: str
 
 
 class KookitHTTPResponse:
@@ -36,7 +45,7 @@ class KookitHTTPResponse:
             files=request_files,
             json=request_json,
         )
-        self.response: Final[Response] = Response(
+        response: Response = Response(
             status_code=status_code,
             extensions={"http_version": http_version.encode("ascii")},
             headers=headers,
@@ -47,3 +56,14 @@ class KookitHTTPResponse:
             stream=stream,
             request=request,
         )
+
+        self.request: Final[KookitResponseRequest] = KookitResponseRequest(
+            content=request.content,
+            headers=request_headers,  # type: ignore
+            url=request.url,
+            method=request.method,
+        )
+
+        self.content: Final[bytes] = response.content
+        self.headers: Final[Mapping[str, str]] = response.headers
+        self.status_code: Final[int] = response.status_code

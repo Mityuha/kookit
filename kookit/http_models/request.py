@@ -1,4 +1,4 @@
-from typing import Any, Final, Optional, Protocol, Union
+from typing import Any, Final, Mapping, Optional, Protocol, Union
 
 from httpx import URL, Request
 from httpx._types import HeaderTypes, QueryParamTypes, RequestContent, RequestData, RequestFiles
@@ -26,7 +26,7 @@ class KookitHTTPRequest:
         request_delay: float = 0.0,
     ) -> None:
         self.service: Final[IKookitService] = service
-        self.request: Final[Request] = Request(
+        request: Request = Request(
             url=url,
             method=method,
             params=params,
@@ -36,10 +36,14 @@ class KookitHTTPRequest:
             files=files,
             json=json,
         )
+        self.url: Final[URL] = request.url
+        self.method: Final[str] = request.method
+        self.content: Final[bytes] = request.content
+        self.headers: Mapping[str, str] = request.headers
         self.request_delay: Final[float] = request_delay
 
     def __str__(self) -> str:
-        return f"<Request({self.service}, '{self.request.method}', '{self.request.url}')>"
+        return f"<Request({self.service}, '{self.method}', '{self.url}')>"
 
     def __repr__(self) -> str:
         return str(self)

@@ -1,11 +1,43 @@
-from typing import Protocol
+from typing import Mapping, MutableMapping, Optional, Protocol, runtime_checkable
 
-from httpx import Request, Response
+from httpx import URL
 
 
+@runtime_checkable
+class IRequest(Protocol):
+    @property
+    def content(self) -> bytes:
+        ...
+
+    @property
+    def headers(self) -> Optional[MutableMapping[str, str]]:
+        ...
+
+    @property
+    def url(self) -> URL:
+        ...
+
+    @property
+    def method(self) -> str:
+        ...
+
+
+@runtime_checkable
 class IKookitHTTPResponse(Protocol):
     @property
-    def response(self) -> Response:
+    def request(self) -> IRequest:
+        ...
+
+    @property
+    def content(self) -> bytes:
+        ...
+
+    @property
+    def headers(self) -> Mapping[str, str]:
+        ...
+
+    @property
+    def status_code(self) -> int:
         ...
 
 
@@ -15,9 +47,22 @@ class IKookitService(Protocol):
         ...
 
 
+@runtime_checkable
 class IKookitHTTPRequest(Protocol):
     @property
-    def request(self) -> Request:
+    def content(self) -> bytes:
+        ...
+
+    @property
+    def headers(self) -> Mapping[str, str]:
+        ...
+
+    @property
+    def url(self) -> URL:
+        ...
+
+    @property
+    def method(self) -> str:
         ...
 
     @property

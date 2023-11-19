@@ -49,10 +49,10 @@ class KookitHTTPRequestRunner:
             *[
                 self.run_request(
                     base_url=req.service.service_url,
-                    url=req.request.url,
-                    method=req.request.method,
-                    content=req.request.content,
-                    headers=req.request.headers,
+                    url=req.url,
+                    method=req.method,
+                    content=req.content,
+                    headers=req.headers,
                     request_delay=req.request_delay,
                 )
                 for req in self.requests
