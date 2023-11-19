@@ -67,3 +67,9 @@ class KookitHTTPResponse:
         self.content: Final[bytes] = response.content
         self.headers: Final[Mapping[str, str]] = response.headers
         self.status_code: Final[int] = response.status_code
+
+    def __str__(self) -> str:
+        return f"<Response({self.status_code}, '{self.request.method}', '{self.request.url}')>"
+
+    def __repr__(self) -> str:
+        return str(self)

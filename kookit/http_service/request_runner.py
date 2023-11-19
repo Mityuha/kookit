@@ -13,9 +13,11 @@ class KookitHTTPRequestRunner:
         requests: Optional[List[IKookitHTTPRequest]] = None,
         *,
         service_name: str,
+        run_in_background: bool = False,
     ) -> None:
         self.requests: Final[List[IKookitHTTPRequest]] = requests or []
         self.service_name: Final[str] = service_name
+        self.run_in_background: Final[bool] = run_in_background
 
     def __str__(self) -> str:
         return f"[{self.service_name}][Request]"
@@ -43,7 +45,7 @@ class KookitHTTPRequestRunner:
         logger.debug(f"{self}: request <{method} {url}> successfully executed: {response}")
         return response
 
-    async def run_requests(self) -> List[Response]:
+    async def _run_requests(self) -> List[Response]:
         logger.trace(f"{self}: running {len(self.requests)} requests")
         responses: List[Response] = await asyncio.gather(
             *[
@@ -65,3 +67,10 @@ class KookitHTTPRequestRunner:
                 logger.error(f"{self}: error: cannot execute {request}: {response}")
 
         return [r for r in responses if not isinstance(r, BaseException)]
+
+    async def run_requests(self) -> List[Response]:
+        if not self.run_in_background:
+            return await self._run_requests()
+
+        asyncio.create_task(self._run_requests())
+        return []

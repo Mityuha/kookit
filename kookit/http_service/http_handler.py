@@ -8,10 +8,10 @@ from httpx import URL
 from multiprocess import Value
 
 from kookit.logging import logger
-from ..interfaces import IKookitHTTPRequest
-from ..interfaces import IKookitHTTPResponse as IResponse
-from ..request_runner import KookitHTTPRequestRunner
-from ..requests_diff import compare_requests
+from .interfaces import IKookitHTTPRequest
+from .interfaces import IKookitHTTPResponse as IResponse
+from .request_runner import KookitHTTPRequestRunner
+from .requests_diff import compare_requests
 
 
 @dataclass
@@ -36,6 +36,7 @@ class KookitHTTPHandler:
                 request_runner=KookitHTTPRequestRunner(
                     requests,
                     service_name=service_name,
+                    run_in_background=True,
                 ),
             )
         ]
