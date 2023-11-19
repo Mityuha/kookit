@@ -41,4 +41,4 @@ async def test_request_not_found(
     assert response.status_code == 404
     assert response.json()
 
-    service.clear_actions()
+    service.method_url_2_handler.clear()

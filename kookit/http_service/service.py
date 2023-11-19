@@ -43,11 +43,13 @@ class KookitHTTPService:
 
     def add_actions(self, *actions: Union[IKookitHTTPResponse, IKookitHTTPRequest]) -> None:
         self.initial_requests.extend(initial_requests(*actions))
-        grouped_actions: List = groupby_actions(*actions)
+        grouped_actions: List[
+            Tuple[IKookitHTTPResponse, List[IKookitHTTPRequest]]
+        ] = groupby_actions(*actions)
 
         handlers: Iterable[KookitHTTPHandler] = (
             KookitHTTPHandler(
-                resp.response,
+                resp,
                 service_name=self.service_name,
                 requests=requests,
             )

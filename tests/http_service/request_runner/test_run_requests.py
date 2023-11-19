@@ -1,6 +1,6 @@
 from typing import Any, List
 
-from httpx import Request, Response
+from httpx import Response
 
 from kookit import KookitHTTPRequestRunner, KookitJSONRequest
 
@@ -15,7 +15,7 @@ async def test_run_requests(
         service_name="",
     )
 
-    r: Request = random_json_request.request
+    r = random_json_request
     status_code: int = 205
     json_resp: dict = faker.pydict(value_types=[int, float, str])
     httpx_mock.add_response(

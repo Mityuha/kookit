@@ -25,7 +25,7 @@ def create_service(
     name: str,
 ) -> Tuple[IncomingRequest, KookitHTTPService]:
     kookit_json_response: KookitJSONResponse = kookit_json_response_generator()
-    req = kookit_json_response.response.request
+    req = kookit_json_response.request
     incoming_request: IncomingRequest = IncomingRequest(
         method=req.method,
         url=req.url,
@@ -53,7 +53,7 @@ def _service3(
     kookit_json_response_generator: Any,
 ) -> Tuple[IncomingRequest, KookitHTTPService]:
     kookit_json_response: KookitJSONResponse = kookit_json_response_generator()
-    req = kookit_json_response.response.request
+    req = kookit_json_response.request
     incoming_request: IncomingRequest = IncomingRequest(
         method=req.method,
         url=req.url,

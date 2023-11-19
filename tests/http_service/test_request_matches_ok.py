@@ -1,9 +1,9 @@
+import json
 from typing import Any
 
 import httpx
 import pytest
 import requests  # type: ignore
-from httpx import Request
 
 from kookit import Kookit, KookitHTTPService, KookitJSONResponse
 
@@ -21,7 +21,7 @@ async def test_request_matches_ok(
     await kookit.start_services()
 
     base_url: str = service.service_url
-    request: Request = random_json_response.response.request
+    request = random_json_response.request
     url: str = f"{base_url}{request.url}"
 
     response = client.request(
@@ -31,5 +31,5 @@ async def test_request_matches_ok(
         data=request.content,
     )
 
-    assert response.status_code == random_json_response.response.status_code
-    assert response.json() == random_json_response.response.json()
+    assert response.status_code == random_json_response.status_code
+    assert response.json() == json.loads(random_json_response.content)

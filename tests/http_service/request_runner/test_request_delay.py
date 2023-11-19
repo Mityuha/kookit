@@ -2,7 +2,6 @@ import asyncio
 from typing import Any
 
 import pytest
-from httpx import Request
 
 from kookit import KookitHTTPRequestRunner, KookitJSONRequest
 
@@ -16,7 +15,7 @@ async def test_run_requests(
         service_name="",
     )
 
-    r: Request = random_json_request.request
+    r = random_json_request
     httpx_mock.add_response(
         url=f"{random_json_request.service.service_url}{r.url}",
         method=r.method,

@@ -1,4 +1,4 @@
-from typing import Any, Mapping, MutableMapping, Optional, Protocol
+from typing import Any, Mapping, Optional, Protocol
 
 from httpx import URL
 
@@ -9,7 +9,7 @@ class ExpectedRequest(Protocol):
         ...
 
     @property
-    def headers(self) -> Optional[MutableMapping[str, str]]:
+    def headers(self) -> Optional[Mapping[str, str]]:
         ...
 
     @property

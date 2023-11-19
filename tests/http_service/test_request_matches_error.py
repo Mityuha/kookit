@@ -4,7 +4,6 @@ from urllib.parse import parse_qs, urlparse
 import httpx
 import pytest
 import requests  # type: ignore
-from httpx import Request
 
 from kookit import Kookit, KookitHTTPService, KookitJSONResponse
 
@@ -25,7 +24,7 @@ async def test_request_matches_error(
     await kookit.start_services()
 
     base_url: str = service.service_url
-    request: Request = random_json_response.response.request
+    request = random_json_response.request
     url: str = f"{base_url}{request.url}"
 
     headers = request.headers
@@ -36,7 +35,7 @@ async def test_request_matches_error(
         headers = faker.pydict(value_types=[str])
     elif what == "content":
         data = faker.json().encode()
-        headers["Content-Length"] = str(len(data))
+        headers["Content-Length"] = str(len(data))  # type: ignore
         what = "body"
     elif what == "params":
         params = faker.pydict(value_types=[str])
@@ -46,4 +45,4 @@ async def test_request_matches_error(
     assert response.status_code == 400
     assert what in response.json()["error"]
 
-    service.clear_actions()
+    service.method_url_2_handler.clear()

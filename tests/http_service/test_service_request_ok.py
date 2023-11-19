@@ -9,7 +9,7 @@ async def test_service_callback_to_yourself(
 ) -> None:
     service = KookitHTTPService()
 
-    request = random_json_response.response.request
+    request = random_json_response.request
 
     service.add_actions(
         KookitJSONRequest(

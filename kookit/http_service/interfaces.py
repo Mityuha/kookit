@@ -1,4 +1,4 @@
-from typing import Mapping, MutableMapping, Optional, Protocol, runtime_checkable
+from typing import Mapping, Optional, Protocol, runtime_checkable
 
 from httpx import URL
 
@@ -10,7 +10,7 @@ class IRequest(Protocol):
         ...
 
     @property
-    def headers(self) -> Optional[MutableMapping[str, str]]:
+    def headers(self) -> Optional[Mapping[str, str]]:
         ...
 
     @property

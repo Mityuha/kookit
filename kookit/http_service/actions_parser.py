@@ -32,7 +32,7 @@ def initial_requests(
 
 def groupby_actions(
     *actions: Union[IKookitHTTPResponse, IKookitHTTPRequest],
-) -> List[Tuple[IKookitHTTPResponse, List[IKookitHTTPRequest]],]:
+) -> List[Tuple[IKookitHTTPResponse, List[IKookitHTTPRequest]]]:
     response_i: int = 0
     for response_i, action in enumerate(actions):
         if not is_request(action):
@@ -41,7 +41,6 @@ def groupby_actions(
         response_i += 1
 
     def action_key(action: Any) -> int:
-        print(">>>", action)
         assert is_response(action) or is_request(action)
         return is_response(action)
 
