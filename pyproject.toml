@@ -32,7 +32,7 @@ use_parentheses= true
 
 [tool.poetry]
 name = "pytest-kookit"
-version = "0.0.1"
+version = "0.0.2"
 description = "Your simple but kooky integration testing with pytest"
 readme = "README.md"
 license = "MIT"
