@@ -45,6 +45,8 @@ class KookitHTTPResponse:
             files=request_files,
             json=request_json,
         )
+        if request_headers:
+            request_headers = request.headers  # lowercase headers' keys
         response: Response = Response(
             status_code=status_code,
             extensions={"http_version": http_version.encode("ascii")},

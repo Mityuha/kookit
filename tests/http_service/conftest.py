@@ -43,7 +43,9 @@ def kookit_json_response_generator(faker: Any) -> Callable:
             ),
             headers=faker.pydict(value_types=[str]),
             request_params=choice([faker.pydict(3, value_types=(str,)), faker.pystr()]),
-            request_headers=faker.pydict(value_types=[str]),
+            request_headers={
+                k.capitalize(): v for k, v in faker.pydict(value_types=[str]).items()
+            },
             request_json=faker.pydict(value_types=[float, int, str]),
         )
 
