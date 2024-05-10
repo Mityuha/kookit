@@ -1,17 +1,6 @@
 repos:
   - repo: local
     hooks:
-      - id: pydocstringformatter
-        name: pydocstringformatter
-        description: "Formats docstrings to follow PEP8 and PEP257."
-        language: system
-        entry: poetry run pydocstringformatter
-        args:
-          [
-            "-w",
-            "--max-line-length=120",
-          ]
-        types: [python]
       - id: isort
         name: isort
         stages: [commit]
