@@ -10,6 +10,7 @@ from pytest_mock import MockerFixture
 
 from ..http_models import KookitHTTPRequest, KookitHTTPResponse
 from ..logging import logger
+from ..utils import lvalue_from_assign
 from .client_side import KookitHTTPAsyncClient
 from .http_kookit import HTTPKookit
 from .interfaces import IKookit, IKookitHTTPService
@@ -19,7 +20,7 @@ class Kookit(KookitHTTPAsyncClient):
     def __init__(self, mocker: MockerFixture) -> None:
         self.mocker: Final[MockerFixture] = mocker
         self.kookits: Final[List[IKookit]] = [HTTPKookit(mocker)]
-        self.http_hookit: Final = HTTPKookit(mocker)
+        self.http_kookit: Final = HTTPKookit(mocker)
         self.services: Final[List[IKookitService]] = []
         super().__init__()
 
@@ -52,13 +53,16 @@ class Kookit(KookitHTTPAsyncClient):
         actions: Iterable[KookitHTTPRequest | KookitHTTPResponse] = (),
         routers: Iterable[APIRouter] = (),
         lifespans: Iterable[AbstractAsyncContextManager] = (),
+        name: str = "",
     ) -> IKookitHTTPService:
+        name = name or lvalue_from_assign()
         return self.http_kookit.new_http_service(
             env_var,
             unique_url=unique_url,
             actions=actions,
             routers=routers,
             lifespans=lifespans,
+            name=name,
         )
 
     async def stop_services(
