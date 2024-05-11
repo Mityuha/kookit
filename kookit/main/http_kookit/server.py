@@ -1,29 +1,47 @@
+from __future__ import annotations
 from contextlib import asynccontextmanager
-from typing import AsyncIterator, Final, Iterable
+from typing import Any, AsyncIterator, Final, Iterable
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from multiprocess import Queue
 
-from .interfaces import IKookitHTTPService
+from ..utils import ILifespan, Lifespans
 
 
 class KookitHTTPServer:
-    def __init__(self, queue: Queue, *, host: str = "127.0.0.1", port: int = 20000) -> None:
-        self.queue: Final[Queue] = queue
+    def __init__(self, port: int, *, host: str = "127.0.0.1") -> None:
+        self.queue: Final = Queue()
         self.host: Final[str] = host
         self.port: Final[int] = port
         self.url: Final[str] = f"http://{host}:{port}"
 
-    def run(self, services: Iterable[IKookitHTTPService]) -> None:
+    def wait(self, timeout: float | None = None) -> Any:
+        return self.queue.get(timeout)
+
+    def run(
+        self,
+        routers: Iterable[APIRouter],
+        lifespans: Iterable[ILifespan],
+    ) -> None:
         @asynccontextmanager
-        async def notify_lifespan(app: FastAPI) -> AsyncIterator:
+        async def notify_lifespan(_app: FastAPI) -> AsyncIterator:
             self.queue.put(True)
             yield
             self.queue.put(False)
 
-        app: FastAPI = FastAPI(lifespan=notify_lifespan)
-        for service in services:
-            app.include_router(service.router)
+        @asynccontextmanager
+        async def routers_lifespan(app: FastAPI) -> AsyncIterator:
+            for router in routers:
+                app.include_router(router)
+            yield
+
+        app: FastAPI = FastAPI(
+            lifespan=Lifespans(
+                *lifespans,
+                routers_lifespan,
+                notify_lifespan,
+            )
+        )
 
         uvicorn.run(app, host=self.host, port=self.port)

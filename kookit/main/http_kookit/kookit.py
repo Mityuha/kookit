@@ -1,14 +1,17 @@
 import os
 import queue
-from contextlib import suppress
+from contextlib import AbstractAsyncContextManager, suppress
 from itertools import cycle
-from typing import Any, Final, List, Optional
+from typing import Any, Final, Iterable, List, Optional
 
-from multiprocess import Process, Queue
+from fastapi import APIRouter
+from multiprocess import Process
 from pytest_mock import MockerFixture
 
 from kookit.logging import logger
-from .interfaces import IKookitHTTPService, http_service
+from ..http_models import KookitHTTPRequest, KookitHTTPResponse
+from ..http_service import KookitHTTPService
+from .interfaces import IKookitHTTPService
 from .server import KookitHTTPServer
 
 
@@ -17,11 +20,7 @@ class HTTPKookit:
 
     def __init__(self, mocker: MockerFixture) -> None:
         self.mocker: Final[MockerFixture] = mocker
-        self.server_queue: Final[Queue] = Queue()
-        self.server: Final[KookitHTTPServer] = KookitHTTPServer(
-            self.server_queue,
-            port=next(self.server_port),
-        )
+        self.server: Final[KookitHTTPServer] = KookitHTTPServer(next(self.server_port))
         self.services: Final[List[IKookitHTTPService]] = []
         self.server_process: Optional[Process] = None
         super().__init__()
@@ -29,19 +28,47 @@ class HTTPKookit:
     def __str__(self) -> str:
         return "[HTTPKookit]"
 
-    async def prepare_services(self, *services: Any) -> List[Any]:
-        assert not self.services, "You can only add services once"
-        logger.trace(f"{self}: preparing {len(services)} services: {services}")
-        self.services.extend((service for service in services if http_service(service)))
-        for service in self.services:
-            if not service.service_url:
-                service.service_url = self.server.url
+    def new_http_service(
+        self,
+        env_var: str,
+        *,
+        unique_url: bool,
+        actions: Iterable[KookitHTTPRequest | KookitHTTPResponse] = (),
+        routers: Iterable[APIRouter] = (),
+        lifespans: Iterable[AbstractAsyncContextManager] = (),
+        name: str = "",
+    ) -> IKookitHTTPService:
+        server = self.server
+        if unique_url:
+            server = KookitHTTPServer(
+                next(self.server_port),
+            )
 
-        envs = {**os.environ}
-        envs.update({s.url_env_var: s.service_url for s in services if s.url_env_var})
-        envs.update()
-        self.mocker.patch.dict(os.environ, envs)
-        return [service for service in services if not http_service(service)]
+        if env_var:
+            self.mocker.patch.dict(os.environ, {"env_var": server.url})
+        service = KookitHTTPService(
+            server=server,
+            actions=actions,
+            routers=routers,
+            lifespans=lifespans,
+            name=name,
+        )
+        self.services.append(service)
+        return service
+
+    # async def prepare_services(self, *services: Any) -> List[Any]:
+    #     assert not self.services, "You can only add services once"
+    #     logger.trace(f"{self}: preparing {len(services)} services: {services}")
+    #     self.services.extend((service for service in services if http_service(service)))
+    #     for service in self.services:
+    #         if not service.service_url:
+    #             service.service_url = self.server.url
+
+    #     envs = {**os.environ}
+    #     envs.update({s.url_env_var: s.service_url for s in services if s.url_env_var})
+    #     envs.update()
+    #     self.mocker.patch.dict(os.environ, envs)
+    #     return [service for service in services if not http_service(service)]
 
     async def start_services(
         self,

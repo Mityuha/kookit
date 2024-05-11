@@ -1,20 +1,26 @@
+from __future__ import annotations
 import os
+from contextlib import AbstractAsyncContextManager
 from typing import Any, AsyncIterator, Final, Iterable, List, Mapping, Optional
 
 import anyio
+from fastapi import APIRouter
 from pytest import fixture
 from pytest_mock import MockerFixture
 
+from ..http_models import KookitHTTPRequest, KookitHTTPResponse
 from ..logging import logger
 from .client_side import KookitHTTPAsyncClient
 from .http_kookit import HTTPKookit
-from .interfaces import IKookit
+from .interfaces import IKookit, IKookitHTTPService
 
 
 class Kookit(KookitHTTPAsyncClient):
     def __init__(self, mocker: MockerFixture) -> None:
         self.mocker: Final[MockerFixture] = mocker
         self.kookits: Final[List[IKookit]] = [HTTPKookit(mocker)]
+        self.http_hookit: Final = HTTPKookit(mocker)
+        self.services: Final[List[IKookitService]] = []
         super().__init__()
 
     def __str__(self) -> str:
@@ -37,6 +43,23 @@ class Kookit(KookitHTTPAsyncClient):
             await kookit.start_services(
                 http_wait_for_server_launch=http_wait_for_server_launch,
             )
+
+    def new_http_service(
+        self,
+        env_var: str = "",
+        *,
+        unique_url: bool = False,
+        actions: Iterable[KookitHTTPRequest | KookitHTTPResponse] = (),
+        routers: Iterable[APIRouter] = (),
+        lifespans: Iterable[AbstractAsyncContextManager] = (),
+    ) -> IKookitHTTPService:
+        return self.http_kookit.new_http_service(
+            env_var,
+            unique_url=unique_url,
+            actions=actions,
+            routers=routers,
+            lifespans=lifespans,
+        )
 
     async def stop_services(
         self,
