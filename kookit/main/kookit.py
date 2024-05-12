@@ -26,29 +26,22 @@ class Kookit(KookitHTTPAsyncClient):
     def __str__(self) -> str:
         return "[kookit]"
 
-    def start(self) -> None:
+    def __enter__(self) -> "Kookit":
         logger.trace(f"{self}: starting services")
         for kookit in [self.http_kookit]:
             kookit.__enter__()
+        return self
 
-    def stop(self) -> None:
+    def __exit__(self, *args: Any) -> None:
         logger.trace(f"{self}: stopping services")
         for kookit in [self.http_kookit]:
-            kookit.__exit__(None, None, None)
-
-    def __enter__(self) -> "Kookit":
-        self.start()
-        return self
-
-    def __exit__(self, *_args: Any) -> None:
-        self.stop()
+            kookit.__exit__(*args)
 
     async def __aenter__(self) -> "Kookit":
-        self.start()
-        return self
+        return self.__enter__()
 
-    async def __aexit__(self, *_args: Any) -> None:
-        self.stop()
+    async def __aexit__(self, *args: Any) -> None:
+        return self.__exit__(*args)
 
     def new_http_service(
         self,
@@ -70,10 +63,11 @@ class Kookit(KookitHTTPAsyncClient):
             name=name,
         )
 
-    def wait(self, seconds: float) -> Any:
-        if anyio.get_running_loop():
-            return anyio.sleep(seconds)
+    def sleep(self, seconds: float) -> None:
         return time.sleep(seconds)
+
+    async def asleep(self, seconds: float) -> None:
+        return await anyio.sleep(seconds)
 
     def patch_env(self, new_env: Mapping[str, str]) -> None:
         self.mocker.patch.dict(os.environ, new_env)

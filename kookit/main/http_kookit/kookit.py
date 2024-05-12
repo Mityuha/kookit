@@ -58,7 +58,7 @@ class HTTPKookit:
     def __enter__(self) -> "KookitHTTPService":
         not_unique = []
         for service in self.services:
-            service.start()
+            service.__enter__()
             if not service.unique_url:
                 not_unique.append(service)
 
@@ -76,9 +76,9 @@ class HTTPKookit:
             if not is_started:
                 raise ValueError(f"{self}: bad value received from server while starting")
 
-    def __exit__(self, *_args: Any) -> None:
+    def __exit__(self, *args: Any) -> None:
         for service in self.services:
-            service.stop()
+            service.__exit__(*args)
 
         if not self.server_process:
             logger.trace(f"{self}: server process already stopped")

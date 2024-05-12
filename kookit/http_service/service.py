@@ -3,6 +3,7 @@ import queue
 from collections.abc import Iterable, Sequence
 from contextlib import ExitStack, suppress
 from itertools import groupby
+from types import TracebackType
 from typing import Any, Final
 
 from fastapi import APIRouter, Request, Response
@@ -59,16 +60,16 @@ class KookitHTTPService:
         self.start()
         return self
 
-    def __exit__(self, *_args: Any) -> None:
-        self.stop()
+    def __exit__(self, *args: Any) -> None:
+        self.stop(*args)
         return
 
     async def __aenter__(self) -> "KookitHTTPService":
         self.start()
         return self
 
-    async def __aexit__(self, *_args: Any) -> None:
-        self.stop()
+    async def __aexit__(self, *args: Any) -> None:
+        self.stop(*args)
         return
 
     def add_actions(self, *actions: KookitHTTPResponse | KookitHTTPRequest) -> None:
@@ -130,13 +131,20 @@ class KookitHTTPService:
             if not is_started:
                 raise ValueError(f"{self}: bad value received from server while starting")
 
-    def stop(self, *, wait_for_stop_timeout: float | None = None) -> None:
+    def stop(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_val: BaseException | None = None,
+        exc_tb: TracebackType | None = None,
+        *,
+        wait_for_stop_timeout: float | None = None,
+    ) -> None:
         self.actions.clear()
         self.routers.clear()
         self.lifespans.clear()
 
         active_groups = [group for group in self._response_groups if group.active]
-        if active_groups:
+        if active_groups and not any([exc_type, exc_val, exc_tb]):
             raise RuntimeError(
                 f"{self}: active groups left: {', '.join(str(g) for g in active_groups)}"
             )
