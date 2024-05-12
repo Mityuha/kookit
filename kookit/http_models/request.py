@@ -6,8 +6,7 @@ from httpx._types import HeaderTypes, QueryParamTypes, RequestContent, RequestDa
 
 class IKookitService(Protocol):
     @property
-    def service_url(self) -> str:
-        ...
+    def url(self) -> str: ...
 
 
 class KookitHTTPRequest:

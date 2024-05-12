@@ -1,20 +1,19 @@
 from __future__ import annotations
 import queue
-from contextlib import suppress
-from itertools import chain
-from typing import Any, Dict, Final, Iterable, List, Tuple
+from collections.abc import Iterable, Sequence
+from contextlib import ExitStack, suppress
+from itertools import groupby
+from typing import Any, Final
 
-from fastapi import APIRouter
-from httpx import URL
+from fastapi import APIRouter, Request, Response
+from fastapi.responses import JSONResponse
 from multiprocess import Process
 
 from kookit import KookitHTTPServer
+from ..http_models import KookitHTTPRequest, KookitHTTPResponse
 from ..logging import logger
 from ..utils import ILifespan, Lifespans
-from .actions_parser import groupby_actions
-from .http_handler import KookitHTTPHandler
-from .interfaces import IKookitHTTPRequest, IKookitHTTPResponse
-from .request_runner import KookitHTTPRequestRunner
+from .response_group import ResponseGroup
 
 
 class KookitHTTPService:
@@ -22,25 +21,21 @@ class KookitHTTPService:
         self,
         *,
         server: KookitHTTPServer,
-        actions: Iterable[IKookitHTTPRequest | IKookitHTTPResponse] = (),
+        actions: Iterable[KookitHTTPRequest | KookitHTTPResponse] = (),
         routers: Iterable[APIRouter] = (),
         lifespans: Iterable[ILifespan] = (),
         unique_url: bool = False,
         name: str = "",
     ) -> None:
         self.server: Final = server
-        self.actions: list[IKookitHTTPRequest | IKookitHTTPResponse] = list(actions)
-        self.routers: list[APIRouter] = list(routers)
-        self.lifespan: Final = Lifespans(*list(lifespans))
+        self.actions: Final = list(actions)
+        self.routers: Final = list(routers)
+        self.lifespans: Final = list(lifespans)
+
         self._unique_url: Final = unique_url
         self._name: Final = name
-
-        self.initial_requests: Final[List[IKookitHTTPRequest]] = []
-        self.method_url_2_handler: Final[Dict[Tuple[str, URL], KookitHTTPHandler]] = {}
-
-        # self.add_routers(*routers)
-        # self.add_actions(*actions)
         self._server_process: Process | None = None
+        self._response_groups: Sequence[ResponseGroup] = []
 
     @property
     def url(self) -> str:
@@ -50,54 +45,15 @@ class KookitHTTPService:
     def name(self) -> str:
         return self._name
 
+    @property
+    def unique_url(self) -> bool:
+        return self._unique_url
+
     def __str__(self) -> str:
         return f"[{self._name}]"
 
     def __repr__(self) -> str:
         return str(self)
-
-    def add_lifespans(self, *lifespans: ILifespan) -> None:
-        self.lifespan.add(*lifespans)
-
-    def add_routers(self, *routers: APIRouter) -> None:
-        self.routers.extend(routers)
-
-    def start(self, *, wait_for_start_timeout: float | None = None) -> None:
-        if not self._unique_url:
-            return
-
-        if self._server_process:
-            logger.trace(f"{self}: server process already running")
-            return
-
-        logger.trace(f"{self}: starting server process [{self.url}]")
-        self._server_process = Process(
-            target=self.server.run,
-            args=([self.routers], [self.lifespan]),
-        )
-        self._server_process.start()
-
-        with suppress(queue.Empty):
-            is_started = self.server.wait(wait_for_start_timeout)
-            if not is_started:
-                raise ValueError(f"{self}: bad value received from server while starting")
-
-    def stop(self, *, wait_for_stop_timeout: float | None = None) -> None:
-        if not self._unique_url:
-            return
-
-        if not self._server_process:
-            logger.trace(f"{self}: server process already stopped")
-            return
-
-        logger.trace(f"{self}: stop server process")
-        self._server_process.terminate()
-        self._server_process = None
-
-        with suppress(queue.Empty):
-            is_started: bool = self.server.wait(wait_for_stop_timeout)
-            if is_started:
-                raise ValueError(f"{self}: bad value received from server while stopping")
 
     def __enter__(self) -> "KookitHTTPService":
         self.start()
@@ -115,60 +71,129 @@ class KookitHTTPService:
         self.stop()
         return
 
-    def calc_router(self) -> APIRouter:
+    def add_actions(self, *actions: KookitHTTPResponse | KookitHTTPRequest) -> None:
+        self.actions.extend(actions)
+
+    def add_lifespans(self, *lifespans: ILifespan) -> None:
+        self.lifespans.extend(lifespans)
+
+    def add_routers(self, *routers: APIRouter) -> None:
+        self.routers.extend(routers)
+
+    @property
+    def router(self) -> APIRouter:
         router = APIRouter()
         for router in self.routers:
             router.include_router(router)
+
+        for group in self._response_groups:
+            if group.response:
+                router.add_api_route(
+                    group.path,
+                    self.__call__,
+                    methods=[group.method],
+                )
         return router
 
-    def add_actions(self, *actions: IKookitHTTPResponse | IKookitHTTPRequest) -> None:
-        self.actions.extend(actions)
+    @property
+    def lifespan(self) -> ILifespan:
+        return Lifespans(*self.lifespans)
 
-    def calc_actions(self) -> None:
-        # self.initial_requests.extend(initial_requests(*actions))
-        grouped_actions: list[Tuple[IKookitHTTPResponse, List[IKookitHTTPRequest]]] = (
-            groupby_actions(*self.actions)
+    def start(self, *, wait_for_start_timeout: float | None = None) -> None:
+        if self._response_groups:
+            logger.trace(f"{self}: service already started")
+            return
+
+        self._response_groups = self.create_response_groups(self.actions, parent=self)
+
+        with ExitStack() as stack:
+            _ = [
+                stack.enter_context(group) for group in self._response_groups if not group.response
+            ]
+
+        if not self._unique_url:
+            return
+
+        if self._server_process:
+            logger.trace(f"{self}: server process already running")
+            return
+
+        logger.trace(f"{self}: starting server process [{self.url}]")
+        self._server_process = Process(
+            target=self.server.run,
+            args=([self.router], [self.lifespan]),
         )
+        self._server_process.start()
 
-        handlers: Iterable[KookitHTTPHandler] = (
-            KookitHTTPHandler(
-                resp,
-                service_name=self.name,
-                requests=requests,
+        with suppress(queue.Empty):
+            is_started = self.server.wait(wait_for_start_timeout)
+            if not is_started:
+                raise ValueError(f"{self}: bad value received from server while starting")
+
+    def stop(self, *, wait_for_stop_timeout: float | None = None) -> None:
+        self.actions.clear()
+        self.routers.clear()
+        self.lifespans.clear()
+
+        active_groups = [group for group in self._response_groups if group.active]
+        if active_groups:
+            raise RuntimeError(
+                f"{self}: active groups left: {', '.join(str(g) for g in active_groups)}"
             )
-            for (resp, requests) in grouped_actions
-        )
 
-        for handler in handlers:
-            url, method = handler.url, handler.method
-            try:
-                self.method_url_2_handler[(method, url)].merge(handler)
-            except KeyError:
-                self.method_url_2_handler[(method, url)] = handler
+        self._response_groups = []
 
-        for (method, url), handler in self.method_url_2_handler.items():
-            self.router.add_api_route(
-                url.path,
-                handler.__call__,
-                methods=[method],
+        if not self._unique_url:
+            return
+
+        if not self._server_process:
+            logger.trace(f"{self}: server process already stopped")
+            return
+
+        logger.trace(f"{self}: stop server process")
+        self._server_process.terminate()
+        self._server_process = None
+
+        with suppress(queue.Empty):
+            is_started: bool = self.server.wait(wait_for_stop_timeout)
+            if is_started:
+                raise ValueError(f"{self}: bad value received from server while stopping")
+
+    @staticmethod
+    def create_response_groups(
+        actions: Iterable[KookitHTTPRequest | KookitHTTPResponse],
+        *,
+        parent: Any = "",
+    ) -> Sequence[ResponseGroup]:
+        groups: list[ResponseGroup] = []
+        for is_request, group in groupby(
+            actions, key=lambda key: isinstance(key, KookitHTTPRequest)
+        ):
+            if is_request:
+                if not groups:
+                    groups.append(ResponseGroup(parent=parent))
+                groups[-1].add_requests(*group)  # type: ignore
+            else:
+                groups.extend(ResponseGroup(response, parent=parent) for response in group)  # type: ignore
+
+        return groups
+
+    async def __call__(self, request: Request) -> Response:
+        group: ResponseGroup | None = None
+        for gr in self._response_groups:
+            if gr == request:
+                break
+
+        if not group:
+            return JSONResponse(
+                {"error": f"{self}: cannot find response for request: {request}"}, status_code=400
             )
-        logger.trace(
-            f"{self}: handlers {self.method_url_2_handler}, {len(self.initial_requests)} initial requests {self.initial_requests}"
-        )
 
-    def unused_responses(self) -> List[IKookitHTTPResponse]:
-        unused_responses: List[IKookitHTTPResponse] = list(
-            chain.from_iterable(
-                handler.unused_responses() for handler in self.method_url_2_handler.values()
+        with group:
+            assert group.response
+            return Response(
+                content=group.response.content,
+                media_type=group.response.headers["content-type"],
+                headers=group.response.headers,
+                status_code=group.response.status_code,
             )
-        )
-
-        logger.trace(f"{self}: {len(unused_responses)} unused responses: {unused_responses}")
-        return unused_responses
-
-    async def run(self) -> None:
-        runner: KookitHTTPRequestRunner = KookitHTTPRequestRunner(
-            self.initial_requests,
-            service_name=self.name,
-        )
-        await runner.run_requests()

@@ -1,7 +1,8 @@
 from __future__ import annotations
 import os
+import time
 from contextlib import AbstractAsyncContextManager
-from typing import Any, AsyncIterator, Final, Iterable, List, Mapping, Optional
+from typing import Any, Final, Iterable, Mapping
 
 import anyio
 from fastapi import APIRouter
@@ -13,37 +14,41 @@ from ..logging import logger
 from ..utils import lvalue_from_assign
 from .client_side import KookitHTTPAsyncClient
 from .http_kookit import HTTPKookit
-from .interfaces import IKookit, IKookitHTTPService
+from .interfaces import IKookitHTTPService
 
 
 class Kookit(KookitHTTPAsyncClient):
     def __init__(self, mocker: MockerFixture) -> None:
         self.mocker: Final[MockerFixture] = mocker
-        self.kookits: Final[List[IKookit]] = [HTTPKookit(mocker)]
         self.http_kookit: Final = HTTPKookit(mocker)
-        self.services: Final[List[IKookitService]] = []
         super().__init__()
 
     def __str__(self) -> str:
         return "[kookit]"
 
-    async def prepare_services(self, *services: Any) -> None:
-        logger.trace(f"{self}: preparing {len(services)} services: {services}")
-        unfit_services: Iterable[Any] = services
-        for kookit in self.kookits:
-            unfit_services = await kookit.prepare_services(*unfit_services)
-
-        assert not unfit_services, f"Unknown services: {unfit_services}"
-
-    async def start_services(
-        self,
-        http_wait_for_server_launch: Optional[float] = None,
-    ) -> None:
+    def start(self) -> None:
         logger.trace(f"{self}: starting services")
-        for kookit in self.kookits:
-            await kookit.start_services(
-                http_wait_for_server_launch=http_wait_for_server_launch,
-            )
+        for kookit in [self.http_kookit]:
+            kookit.__enter__()
+
+    def stop(self) -> None:
+        logger.trace(f"{self}: stopping services")
+        for kookit in [self.http_kookit]:
+            kookit.__exit__(None, None, None)
+
+    def __enter__(self) -> "Kookit":
+        self.start()
+        return self
+
+    def __exit__(self, *_args: Any) -> None:
+        self.stop()
+
+    async def __aenter__(self) -> "Kookit":
+        self.start()
+        return self
+
+    async def __aexit__(self, *_args: Any) -> None:
+        self.stop()
 
     def new_http_service(
         self,
@@ -56,7 +61,7 @@ class Kookit(KookitHTTPAsyncClient):
         name: str = "",
     ) -> IKookitHTTPService:
         name = name or lvalue_from_assign()
-        return self.http_kookit.new_http_service(
+        return self.http_kookit.new_service(
             env_var,
             unique_url=unique_url,
             actions=actions,
@@ -65,30 +70,15 @@ class Kookit(KookitHTTPAsyncClient):
             name=name,
         )
 
-    async def stop_services(
-        self,
-        http_wait_for_server_stop: Optional[float] = 0.0,
-    ) -> None:
-        logger.trace(f"{self}: stopping services")
-        for kookit in self.kookits:
-            await kookit.stop_services(
-                http_wait_for_server_stop=http_wait_for_server_stop,
-            )
+    def wait(self, seconds: float) -> Any:
+        if anyio.get_running_loop():
+            return anyio.sleep(seconds)
+        return time.sleep(seconds)
 
-    async def __aenter__(self) -> "Kookit":
-        return self
-
-    async def __aexit__(self, *_args: Any) -> None:
-        await self.stop_services()
-
-    async def wait(self, seconds: float) -> None:
-        await anyio.sleep(seconds)
-
-    async def patch_env(self, new_env: Mapping[str, str]) -> None:
+    def patch_env(self, new_env: Mapping[str, str]) -> None:
         self.mocker.patch.dict(os.environ, new_env)
 
 
 @fixture
-async def kookit(mocker: MockerFixture) -> AsyncIterator[Kookit]:
-    async with Kookit(mocker) as kooky:
-        yield kooky
+def kookit(mocker: MockerFixture) -> Iterable[Kookit]:
+    yield Kookit(mocker)
