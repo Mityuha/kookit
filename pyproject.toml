@@ -107,6 +107,16 @@ select = ["ALL"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]
+"tests/*py" = [
+    "D104",
+    "ANN001",
+    "ANN002",
+    "ANN003",
+    "ANN401",
+    "PLR2004",
+    "S101",
+    "S311",
+]
 
 [tool.ruff.format]
 docstring-code-format = true
