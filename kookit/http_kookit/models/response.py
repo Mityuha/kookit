@@ -1,8 +1,12 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from json import dumps as json_dumps
+from json import loads as json_loads
 from typing import TYPE_CHECKING, Any, Final, Mapping
 
 from httpx import URL, Request, Response
+
+from kookit.utils import UUIDEncoder
 
 
 if TYPE_CHECKING:
@@ -53,7 +57,7 @@ class KookitHTTPResponse:
             content=request_content,
             data=request_data,
             files=request_files,
-            json=request_json,
+            json=json_loads(json_dumps(request_json, cls=UUIDEncoder)),
         )
         if request_headers:
             request_headers = request.headers  # lowercase headers' keys
@@ -61,7 +65,7 @@ class KookitHTTPResponse:
             status_code=status_code,
             extensions={"http_version": http_version.encode("ascii")},
             headers=headers,
-            json=json,
+            json=json_loads(json_dumps(json, cls=UUIDEncoder)),
             content=content,
             text=text,
             html=html,

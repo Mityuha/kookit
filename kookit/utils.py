@@ -1,8 +1,10 @@
 from __future__ import annotations
 import contextlib
+import json
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from traceback import extract_stack
 from typing import TYPE_CHECKING, Any, Protocol
+from uuid import UUID
 
 
 if TYPE_CHECKING:
@@ -38,3 +40,10 @@ def lvalue_from_assign(depth: int = 3) -> str:
     if pos == -1:
         return ""
     return text[:pos].strip()
+
+
+class UUIDEncoder(json.JSONEncoder):
+    def default(self, value: Any) -> str:
+        if isinstance(value, UUID):
+            return str(value)
+        return super().default(value)

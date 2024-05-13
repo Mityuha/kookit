@@ -1,7 +1,11 @@
 from __future__ import annotations
+from json import dumps as json_dumps
+from json import loads as json_loads
 from typing import TYPE_CHECKING, Any, Final, Mapping, Protocol
 
 from httpx import URL, Request
+
+from kookit.utils import UUIDEncoder
 
 
 if TYPE_CHECKING:
@@ -43,7 +47,7 @@ class KookitHTTPRequest:
             content=content,
             data=data,
             files=files,
-            json=json,
+            json=json_loads(json_dumps(json, cls=UUIDEncoder)),
         )
         self.url: Final[URL] = request.url
         self.method: Final[str] = request.method
