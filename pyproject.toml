@@ -2,33 +2,6 @@
 requires = ["poetry_core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.black]
-line-length = 99
-target-version = ["py310"]
-include = '\.pyi?$'
-skip-string-normalization = true
-exclude = '''
-(
-  /(
-    | \.git
-    | \.mypy_cache
-  )/
-)
-'''
-
-[tool.isort]
-line_length = 99
-sections = ['FUTURE', 'STDLIB', 'THIRDPARTY', 'FIRSTPARTY', 'LOCALFOLDER']
-no_lines_before = ['STDLIB', 'LOCALFOLDER']
-known_third_party = [
-    'pytest',
-]
-known_local_folder = []
-multi_line_output = 3
-lines_after_imports = 2
-include_trailing_comma = true
-use_parentheses= true
-
 
 [tool.poetry]
 name = "pytest-kookit"
@@ -79,8 +52,6 @@ pytest-mock = "*"
 [tool.poetry.group.dev.dependencies]
 pytest = "*"
 ruff = "*"
-black = "*"
-isort = "*"
 mypy = "*"
 pre-commit = "*"
 pytest-cov = "*"
@@ -106,11 +77,45 @@ ignore_missing_imports = true
 disallow_incomplete_defs = true
 
 [tool.ruff]
+exclude = [
+    ".git", 
+    ".mypy_cache",
+    ".pytest_cache",
+]
 line-length = 99
+fix = true
+unsafe-fixes = true
+show-fixes = true
+
+[tool.ruff.lint]
+ignore = [
+    "D100",
+    "D101",
+    "D102",
+    "D103",
+    "D105",
+    "D107",
+    "ANN101",
+    "ANN401",
+    "PLR0913",
+    "ISC001",
+    "D203",
+    "D213",
+    "COM812",
+]
+select = ["ALL"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]
 
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ruff.lint.isort]
+no-lines-before = ["standard-library", "local-folder"]
+known-third-party = ["pytest"]
+known-local-folder = []
+lines-after-imports = 2
 
 [tool.coverage]
 [tool.coverage.run]
@@ -125,8 +130,6 @@ envlist = py38,py39,py310,py311,py312
 
 [testenv]
 deps =
-    black==22.8.0
-    isort==5.10.1
     mypy==1.5.1
     ruff==0.1.4
 
@@ -142,9 +145,7 @@ deps =
     pytest-asyncio==0.21.1
 
 commands = 
-    black --check kookit/ tests/
-    isort --check kookit tests/
-    ruff check kookit/ tests/
+    ruff check --no-fix kookit/ tests/ 
     mypy kookit/ tests/ 
     pytest tests/ -x
 setenv =
