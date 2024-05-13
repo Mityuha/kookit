@@ -2,6 +2,7 @@ from __future__ import annotations
 import queue
 from contextlib import ExitStack, suppress
 from itertools import groupby
+from threading import Thread
 from types import SimpleNamespace, TracebackType
 from typing import TYPE_CHECKING, Any, Final
 
@@ -35,16 +36,21 @@ class KookitHTTPService:
         one_off: bool = True,
     ) -> None:
         self.server: Final = server
-        self.actions: Final = list(actions)
-        self.routers: Final = list(routers)
-        self.lifespans: Final = list(lifespans)
+        self.actions: Final[list[KookitHTTPRequest | KookitHTTPResponse]] = []
+        self.routers: Final[list[APIRouter]] = []
+        self.lifespans: Final[list[ILifespan]] = []
+        self._response_groups: Sequence[ResponseGroup] = []
+
+        self.add_actions(*actions)
+        self.add_routers(*routers)
+        self.add_lifespans(*lifespans)
 
         self._unique_url: Final = unique_url
         self._name: Final = name
         self._one_off: Final = one_off
 
         self._server_process: Process | None = None
-        self._response_groups: Sequence[ResponseGroup] = []
+        self._active: bool = False
 
     @property
     def url(self) -> str:
@@ -90,6 +96,10 @@ class KookitHTTPService:
 
     def add_actions(self, *actions: KookitHTTPResponse | KookitHTTPRequest) -> None:
         self.actions.extend(actions)
+        self._response_groups = self.create_response_groups(
+            self.actions,
+            parent=self,
+        )
 
     def add_lifespans(self, *lifespans: ILifespan) -> None:
         self.lifespans.extend(lifespans)
@@ -117,40 +127,36 @@ class KookitHTTPService:
         return Lifespans(*self.lifespans)
 
     def start(self, *, wait_for_start_timeout: float | None = None) -> None:
-        if self._response_groups:
+        if self._active:
             logger.trace(f"{self}: service already started")
             return
 
-        self._response_groups = self.create_response_groups(self.actions, parent=self)
+        logger.trace(f"{self}: starting with response groups: {self._response_groups}")
 
         with ExitStack() as stack:
             _ = [
                 stack.enter_context(group) for group in self._response_groups if not group.response
             ]
 
-        if not self._unique_url:
-            return
+        if self._unique_url and not self._server_process:
+            logger.trace(f"{self}: starting server process [{self.url}]")
+            self._server_process = Process(
+                target=self.server.run,
+                args=([self.router], [self.lifespan]),
+            )
+            self._server_process.start()
 
-        if self._server_process:
-            logger.trace(f"{self}: server process already running")
-            return
+            logger.trace(
+                f"{self}: waiting for server process to start ({wait_for_start_timeout} seconds)",
+            )
+            with suppress(queue.Empty):
+                is_started = self.server.wait(wait_for_start_timeout)
+                if not is_started:
+                    msg = f"{self}: bad value received from server while starting"
+                    raise ValueError(msg)
+            logger.trace(f"{self}: server process successfully started")
 
-        logger.trace(f"{self}: starting server process [{self.url}]")
-        self._server_process = Process(
-            target=self.server.run,
-            args=([self.router], [self.lifespan]),
-        )
-        self._server_process.start()
-
-        logger.trace(
-            f"{self}: waiting for server process to start ({wait_for_start_timeout} seconds)",
-        )
-        with suppress(queue.Empty):
-            is_started = self.server.wait(wait_for_start_timeout)
-            if not is_started:
-                msg = f"{self}: bad value received from server while starting"
-                raise ValueError(msg)
-        logger.trace(f"{self}: server process successfully started")
+        self._active = True
 
     def stop(
         self,
@@ -184,6 +190,7 @@ class KookitHTTPService:
             )
 
         self._response_groups = []
+        self._active = False
 
     @staticmethod
     def create_response_groups(
@@ -221,17 +228,27 @@ class KookitHTTPService:
 
         if not group:
             return JSONResponse(
-                {"error": f"{self}: cannot find response for request: {request}"},
+                {
+                    "error": f"{self}: cannot find response for request:"
+                    f" <'{request.method}', {request.url}>"
+                },
                 status_code=400,
             )
 
-        with group:
-            if not group.response:
-                msg = "Response group should specify response"
-                raise ValueError(msg)
-            return Response(
-                content=group.response.content,
-                media_type=group.response.headers["content-type"],
-                headers=group.response.headers,
-                status_code=group.response.status_code,
-            )
+        if not group.response:
+            msg = "Response group should specify response"
+            raise ValueError(msg)
+
+        def run_requests(group: ResponseGroup) -> None:
+            with group:
+                pass
+
+        requests_thread = Thread(target=run_requests, args=(group,), daemon=True)
+        requests_thread.start()
+
+        return Response(
+            content=group.response.content,
+            media_type=group.response.headers["content-type"],
+            headers=group.response.headers,
+            status_code=group.response.status_code,
+        )

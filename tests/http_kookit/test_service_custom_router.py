@@ -1,10 +1,13 @@
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from httpx import Response
 
-from kookit import Kookit, KookitHTTPService
+from kookit import Kookit
+
+
+if TYPE_CHECKING:
+    from httpx import Response
 
 
 class CustomRouter:
@@ -17,6 +20,7 @@ class CustomRouter:
         self.json: Final[Any] = json
         self.headers: Final[dict] = headers
 
+    # ruff: noqa: ARG002
     async def __call__(self, request: Request) -> JSONResponse:
         return JSONResponse(
             self.json,
@@ -25,7 +29,7 @@ class CustomRouter:
         )
 
 
-async def test_service_json_response(
+def test_service_json_response(
     random_method: str,
     random_status_code: int,
     random_resp_json: dict,
@@ -33,7 +37,7 @@ async def test_service_json_response(
     random_uri_path: str,
     kookit: Kookit,
 ) -> None:
-    service = KookitHTTPService(
+    service = kookit.new_http_service(
         routers=[
             CustomRouter(
                 method=random_method,
@@ -45,13 +49,11 @@ async def test_service_json_response(
         ]
     )
 
-    await kookit.prepare_services(service)
-    await kookit.start_services()
+    with kookit:
+        for _ in range(5):
+            method = getattr(kookit, random_method.lower())
+            response: Response = method(service, random_uri_path)
 
-    for _ in range(5):
-        method = getattr(kookit, random_method.lower())
-        response: Response = await method(service, random_uri_path)
-
-        assert response.status_code == random_status_code
-        assert dict(response.headers).items() >= random_headers.items()
-        assert response.json() == random_resp_json
+            assert response.status_code == random_status_code
+            assert dict(response.headers).items() >= random_headers.items()
+            assert response.json() == random_resp_json

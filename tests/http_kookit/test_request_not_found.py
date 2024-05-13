@@ -2,9 +2,9 @@ from typing import Any
 
 import httpx
 import pytest
-import requests  # type: ignore
+import requests  # type: ignore[import-untyped]
 
-from kookit import Kookit, KookitHTTPService, KookitJSONResponse
+from kookit import Kookit, KookitJSONResponse
 
 
 @pytest.mark.parametrize("client", [httpx, requests])
@@ -18,7 +18,7 @@ async def test_request_not_found(
     kookit: Kookit,
     faker: Any,
 ) -> None:
-    service = KookitHTTPService(
+    service = kookit.new_http_service(
         actions=[
             KookitJSONResponse(
                 random_resp_json,
@@ -30,15 +30,11 @@ async def test_request_not_found(
         ]
     )
 
-    await kookit.prepare_services(service)
-    await kookit.start_services()
-
-    base_url: str = service.service_url
+    base_url: str = service.url
     url: str = f"{base_url}/{faker.uri_path()}"
 
-    response = client.request(random_method, url)
+    with pytest.raises(RuntimeError), kookit:
+        response = client.request(random_method, url)
 
     assert response.status_code == 404
     assert response.json()
-
-    service.method_url_2_handler.clear()

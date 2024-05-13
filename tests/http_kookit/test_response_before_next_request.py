@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request
 from multiprocess import Queue
 
-from kookit import Kookit, KookitHTTPService, KookitJSONRequest, KookitJSONResponse
+from kookit import Kookit, KookitJSONRequest, KookitJSONResponse
 
 
 async def test_response_got_before_request(
@@ -20,9 +20,12 @@ async def test_response_got_before_request(
         assert await request.json() == {}
         status_codes.put(100)
 
-    me = KookitHTTPService(routers=[router], service_name="It's ME")
+    me = kookit.new_http_service(
+        routers=[router],
+        name="It's ME",
+    )
 
-    external_service = KookitHTTPService(
+    external_service = kookit.new_http_service(
         actions=[
             KookitJSONResponse(
                 random_resp_json,
@@ -41,12 +44,10 @@ async def test_response_got_before_request(
         ]
     )
 
-    await kookit.prepare_services(external_service, me)
-    await kookit.start_services()
+    with kookit:
+        response = kookit.put(external_service, random_uri_path)
+        status_codes.put(response.status_code)
 
-    response = await kookit.put(external_service, random_uri_path)
-    status_codes.put(response.status_code)
-
-    await kookit.wait(0.3)
+        await kookit.asleep(0.3)
 
     assert [status_codes.get(), status_codes.get(False)] == [random_status_code, 100]

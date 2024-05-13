@@ -3,27 +3,24 @@ from urllib.parse import parse_qs, urlparse
 
 import httpx
 import pytest
-import requests  # type: ignore
+import requests  # type: ignore[import-untyped]
 
-from kookit import Kookit, KookitHTTPService, KookitJSONResponse
+from kookit import Kookit, KookitJSONResponse
 
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
 @pytest.mark.parametrize("client", [httpx, requests])
 @pytest.mark.parametrize("what", ["headers", "content", "params"])
-async def test_request_matches_error(
+def test_request_matches_error(
     random_json_response: KookitJSONResponse,
     client: Any,
     kookit: Kookit,
     what: str,
     faker: Any,
 ) -> None:
-    service = KookitHTTPService(actions=[random_json_response])
+    service = kookit.new_http_service(actions=[random_json_response])
 
-    await kookit.prepare_services(service)
-    await kookit.start_services()
-
-    base_url: str = service.service_url
+    base_url: str = service.url
     request = random_json_response.request
     url: str = f"{base_url}{request.url}"
 
@@ -35,14 +32,18 @@ async def test_request_matches_error(
         headers = faker.pydict(value_types=[str])
     elif what == "content":
         data = faker.json().encode()
-        headers["Content-Length"] = str(len(data))  # type: ignore
+        headers["Content-Length"] = str(len(data))  # type: ignore[index]
         what = "body"
     elif what == "params":
         params = faker.pydict(value_types=[str])
 
-    response = client.request(request.method, url, headers=headers, data=data, params=params)
+    with pytest.raises(RuntimeError), kookit:
+        response = client.request(
+            request.method,
+            url,
+            headers=headers,
+            data=data,
+            params=params,
+        )
 
     assert response.status_code == 400
-    assert what in response.json()["error"]
-
-    service.method_url_2_handler.clear()

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from .utils import ILifespan
 
 
-class KookitHTTPService(Protocol):
+class IKookitHTTPService(Protocol):
     @property
     def url(self) -> str: ...
     @property

@@ -10,6 +10,7 @@ from typing_extensions import Self
 
 from .client_side import KookitHTTPClient
 from .http_kookit import HTTPKookit, KookitHTTPRequest, KookitHTTPResponse
+from .interfaces import IKookitHTTPService
 from .logging import logger
 from .utils import ILifespan, lvalue_from_assign
 
@@ -20,10 +21,8 @@ if TYPE_CHECKING:
     from fastapi import APIRouter
     from pytest_mock import MockerFixture
 
-    from .interfaces import KookitHTTPService as IKookitHTTPService
 
-
-__all__ = ["Kookit", "kookit"]
+__all__ = ["IKookitHTTPService", "Kookit", "kookit"]
 
 
 class Kookit(KookitHTTPClient):

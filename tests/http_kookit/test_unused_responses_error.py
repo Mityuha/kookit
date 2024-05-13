@@ -1,10 +1,10 @@
 import pytest
 
-from kookit import Kookit, KookitHTTPService, KookitJSONResponse
+from kookit import Kookit, KookitJSONResponse
 
 
-@pytest.mark.xfail
-async def test_request_not_found(
+@pytest.mark.xfail()
+def test_request_not_found(
     random_method: str,
     random_status_code: int,
     random_headers: dict,
@@ -12,7 +12,7 @@ async def test_request_not_found(
     random_resp_json: dict,
     kookit: Kookit,
 ) -> None:
-    service = KookitHTTPService(
+    kookit.new_http_service(
         actions=[
             KookitJSONResponse(
                 random_resp_json,
@@ -22,16 +22,18 @@ async def test_request_not_found(
                 headers=random_headers,
             )
         ],
-        service_name="local_service",
+        name="local_service",
     )
 
-    await kookit.prepare_services(service)
-    await kookit.start_services()
-
-    await kookit.stop_services()
+    with kookit:
+        pass
 
 
-async def test_ignore_unused_responses_for_external_url(
+@pytest.mark.skip(
+    reason="There is no option to specify an external url for service for now. "
+    "Would be added on demand"
+)
+def test_ignore_unused_responses_for_external_url(
     random_method: str,
     random_status_code: int,
     random_headers: dict,
@@ -39,7 +41,7 @@ async def test_ignore_unused_responses_for_external_url(
     random_resp_json: dict,
     kookit: Kookit,
 ) -> None:
-    service = KookitHTTPService(
+    kookit.new_http_service(
         actions=[
             KookitJSONResponse(
                 random_resp_json,
@@ -49,11 +51,8 @@ async def test_ignore_unused_responses_for_external_url(
                 headers=random_headers,
             )
         ],
-        service_name="external_service",
+        name="external_service",
     )
-    service.service_url = "https://some.external_url:9801"
 
-    await kookit.prepare_services(service)
-    await kookit.start_services()
-
-    await kookit.stop_services()
+    with kookit:
+        ...

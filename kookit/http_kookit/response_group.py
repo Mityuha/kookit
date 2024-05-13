@@ -29,6 +29,9 @@ class ResponseGroup:
     def active(self) -> bool:
         return bool(self._active.value)
 
+    def __repr__(self) -> str:
+        return str(self)
+
     def __str__(self) -> str:
         return f"<ResponseGroup({self._parent}, '{self.method}', '{self.url}'>"
 
@@ -95,7 +98,7 @@ class ResponseGroup:
 
         req = self.response.request
 
-        if req.content != request.content:
+        if req.content and req.content != request.content:
             logger.trace(f"{self}: Expected body: '{req.content!r}', got: '{request.content!r}'")
             return False
 

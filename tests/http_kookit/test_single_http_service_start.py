@@ -13,7 +13,7 @@ ROUTER_RESPONSE: Final = [{"username": "Rick"}, {"username": "Morty"}]
 
 
 @router.get("/users")
-async def read_users():
+async def read_users() -> list:
     return ROUTER_RESPONSE
 
 

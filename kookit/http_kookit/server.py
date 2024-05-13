@@ -18,7 +18,7 @@ class KookitHTTPServer:
         self.url: Final[str] = f"http://{host}:{port}"
 
     def __str__(self) -> str:
-        return "KookitHTTPServer"
+        return "[KookitHTTPServer]"
 
     def wait(self, timeout: float | None = None) -> Any:
         return self.queue.get(timeout=timeout)

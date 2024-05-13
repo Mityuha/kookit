@@ -1,13 +1,13 @@
 import json
 
-from kookit import Kookit, KookitHTTPService, KookitJSONRequest, KookitJSONResponse
+from kookit import Kookit, KookitJSONRequest, KookitJSONResponse
 
 
-async def test_service_callback_to_yourself(
+def test_service_callback_to_yourself(
     random_json_response: KookitJSONResponse,
     kookit: Kookit,
 ) -> None:
-    service = KookitHTTPService()
+    service = kookit.new_http_service()
 
     request = random_json_response.request
 
@@ -22,5 +22,5 @@ async def test_service_callback_to_yourself(
         random_json_response,
     )
 
-    await kookit.prepare_services(service)
-    await kookit.start_services()
+    with kookit:
+        pass

@@ -116,6 +116,7 @@ select = ["ALL"]
     "PLR2004",
     "S101",
     "S311",
+    "FBT001",
 ]
 
 [tool.ruff.format]

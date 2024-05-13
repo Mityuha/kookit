@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import queue
+import time
 from contextlib import suppress
 from itertools import cycle
 from typing import TYPE_CHECKING, Final, Iterable
@@ -68,24 +69,29 @@ class HTTPKookit:
         return service
 
     def __enter__(self) -> Self:
-        not_unique = []
-        for service in self.services:
-            service.__enter__()
-            if not service.unique_url:
-                not_unique.append(service)
+        # 1. start global server
+        # 2. start all other services' servers.
+        not_unique = [s for s in self.services if not s.unique_url]
 
         if not_unique and not self.server_process:
             self.server_process = Process(
                 target=self.server.run,
-                args=([s.router for s in not_unique], [s.lifespan for s in not_unique]),
+                args=(
+                    [s.router for s in not_unique],
+                    [s.lifespan for s in not_unique],
+                ),
             )
             self.server_process.start()
+            time.sleep(0.01)
 
             with suppress(queue.Empty):
                 is_started = self.server.wait()
                 if not is_started:
                     msg = f"{self}: bad value received from server while starting"
                     raise ValueError(msg)
+
+        for service in self.services:
+            service.__enter__()
 
         return self
 
@@ -95,9 +101,13 @@ class HTTPKookit:
         exc: BaseException | None,
         tb: TracebackType | None,
     ) -> None:
+        # 1. stop global service
+        # 2. stop all other services' servers
         if self.server_process:
             logger.trace(f"{self}: stop server process ({self.server.url})")
             self.server_process.terminate()
+            time.sleep(0.01)
+
             self.server_process = None
 
             with suppress(queue.Empty):

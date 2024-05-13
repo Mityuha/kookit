@@ -2,13 +2,13 @@ from typing import Any
 
 import httpx
 import pytest
-import requests  # type: ignore
+import requests  # type: ignore[import-untyped]
 
-from kookit import Kookit, KookitHTTPService, KookitJSONResponse
+from kookit import Kookit, KookitJSONResponse
 
 
 @pytest.mark.parametrize("client", [httpx, requests])
-async def test_extra_response_error(
+def test_extra_response_error(
     random_method: str,
     random_status_code: int,
     random_headers: dict,
@@ -17,9 +17,7 @@ async def test_extra_response_error(
     client: Any,
     kookit: Kookit,
 ) -> None:
-    service = KookitHTTPService()
-
-    service = KookitHTTPService(
+    service = kookit.new_http_service(
         actions=[
             KookitJSONResponse(
                 random_resp_json,
@@ -31,18 +29,15 @@ async def test_extra_response_error(
         ]
     )
 
-    await kookit.prepare_services(service)
-    await kookit.start_services()
-
-    base_url: str = service.service_url
+    base_url: str = service.url
     url: str = f"{base_url}{random_uri_path}"
 
-    response = client.request(random_method, url)
+    with kookit:
+        response = client.request(random_method, url)
+        error_response = client.request(random_method, url)
 
     assert response.status_code == random_status_code, response.json()
     assert dict(response.headers).items() >= random_headers.items()
     assert response.json() == random_resp_json
-
-    response = client.request(random_method, url)
-    assert response.status_code == 418
-    assert response.json()
+    assert error_response.status_code == 400
+    assert error_response.json()
