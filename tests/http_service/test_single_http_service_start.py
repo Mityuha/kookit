@@ -26,6 +26,7 @@ def test_single_service_response(
     with_service: bool,
     lifespan_gen: Any,
 ) -> None:
+    kookit.show_logs()
     env_var: str = faker.pystr().upper()
     resp_json: dict = faker.pydict(value_types=(float, int, str))
     uri_path: str = f"/{faker.uri_path()}"
@@ -52,11 +53,10 @@ def test_single_service_response(
 
     with cmanager:
         response = kookit.request(service, random_method, uri_path)
+        router_response = httpx.get(f"{service.url}/users")
 
     assert response.status_code == random_status_code
     assert dict(response.headers).items() >= headers.items()
     assert response.json() == resp_json
 
-    with cmanager:
-        router_response = httpx.get(f"{service.url}/users")
     assert router_response.json() == ROUTER_RESPONSE

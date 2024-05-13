@@ -3,17 +3,17 @@ import queue
 from collections.abc import Iterable, Sequence
 from contextlib import ExitStack, suppress
 from itertools import groupby
-from types import TracebackType
+from types import SimpleNamespace, TracebackType
 from typing import Any, Final
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from multiprocess import Process
 
-from kookit import KookitHTTPServer
-from ..http_models import KookitHTTPRequest, KookitHTTPResponse
-from ..logging import logger
-from ..utils import ILifespan, Lifespans
+from kookit.logging import logger
+from kookit.utils import ILifespan, Lifespans
+from .interfaces import IServer
+from .models import KookitHTTPRequest, KookitHTTPResponse
 from .response_group import ResponseGroup
 
 
@@ -21,12 +21,13 @@ class KookitHTTPService:
     def __init__(
         self,
         *,
-        server: KookitHTTPServer,
+        server: IServer,
         actions: Iterable[KookitHTTPRequest | KookitHTTPResponse] = (),
         routers: Iterable[APIRouter] = (),
         lifespans: Iterable[ILifespan] = (),
         unique_url: bool = False,
         name: str = "",
+        one_off: bool = True,
     ) -> None:
         self.server: Final = server
         self.actions: Final = list(actions)
@@ -35,6 +36,8 @@ class KookitHTTPService:
 
         self._unique_url: Final = unique_url
         self._name: Final = name
+        self._one_off: Final = one_off
+
         self._server_process: Process | None = None
         self._response_groups: Sequence[ResponseGroup] = []
 
@@ -84,8 +87,8 @@ class KookitHTTPService:
     @property
     def router(self) -> APIRouter:
         router = APIRouter()
-        for router in self.routers:
-            router.include_router(router)
+        for r in self.routers:
+            router.include_router(r)
 
         for group in self._response_groups:
             if group.response:
@@ -126,10 +129,14 @@ class KookitHTTPService:
         )
         self._server_process.start()
 
+        logger.trace(
+            f"{self}: waiting for server process to start ({wait_for_start_timeout} seconds)"
+        )
         with suppress(queue.Empty):
             is_started = self.server.wait(wait_for_start_timeout)
             if not is_started:
                 raise ValueError(f"{self}: bad value received from server while starting")
+        logger.trace(f"{self}: server process successfully started")
 
     def stop(
         self,
@@ -139,9 +146,20 @@ class KookitHTTPService:
         *,
         wait_for_stop_timeout: float | None = None,
     ) -> None:
-        self.actions.clear()
-        self.routers.clear()
-        self.lifespans.clear()
+        if self._one_off:
+            self.actions.clear()
+            self.routers.clear()
+            self.lifespans.clear()
+
+        if self._unique_url and self._server_process:
+            logger.trace(f"{self}: stop server process")
+            self._server_process.terminate()
+            self._server_process = None
+
+            with suppress(queue.Empty):
+                is_started: bool = self.server.wait(wait_for_stop_timeout)
+                if is_started:
+                    raise ValueError(f"{self}: bad value received from server while stopping")
 
         active_groups = [group for group in self._response_groups if group.active]
         if active_groups and not any([exc_type, exc_val, exc_tb]):
@@ -150,22 +168,6 @@ class KookitHTTPService:
             )
 
         self._response_groups = []
-
-        if not self._unique_url:
-            return
-
-        if not self._server_process:
-            logger.trace(f"{self}: server process already stopped")
-            return
-
-        logger.trace(f"{self}: stop server process")
-        self._server_process.terminate()
-        self._server_process = None
-
-        with suppress(queue.Empty):
-            is_started: bool = self.server.wait(wait_for_stop_timeout)
-            if is_started:
-                raise ValueError(f"{self}: bad value received from server while stopping")
 
     @staticmethod
     def create_response_groups(
@@ -188,8 +190,16 @@ class KookitHTTPService:
 
     async def __call__(self, request: Request) -> Response:
         group: ResponseGroup | None = None
+        cmp_request = SimpleNamespace(
+            content=await request.body(),
+            headers=request.headers,
+            url=request.url,
+            method=request.method,
+            path_params=request.path_params,
+        )
         for gr in self._response_groups:
-            if gr == request:
+            if gr == cmp_request:
+                group = gr
                 break
 
         if not group:

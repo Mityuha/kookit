@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from random import choice
 from typing import Any, Callable
 
@@ -80,3 +81,20 @@ def random_json_request(
     kookit_json_request_generator: Any,
 ) -> KookitJSONResponse:
     return kookit_json_request_generator()
+
+
+@pytest.fixture
+def lifespan_gen() -> Any:
+    class SimpleLifespan:
+        def __init__(self) -> None:
+            self.is_called: bool = False
+
+        @asynccontextmanager
+        async def __call__(self, app: Any) -> Any:
+            self.is_called = True
+            yield
+
+    def wrap() -> Any:
+        return SimpleLifespan()
+
+    return wrap

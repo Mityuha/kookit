@@ -5,12 +5,12 @@ from httpx import Client, Response
 
 class IKookitService(Protocol):
     @property
-    def service_url(self) -> str: ...
+    def url(self) -> str: ...
 
 
-class KookitHTTPAsyncClient:
+class KookitHTTPClient:
     def request(self, service: IKookitService, *args: Any, **kwargs: Any) -> Response:
-        with Client(base_url=service.service_url) as client:
+        with Client(base_url=service.url) as client:
             return client.request(*args, **kwargs)
 
     def get(self, service: IKookitService, *args: Any, **kwargs: Any) -> Response:

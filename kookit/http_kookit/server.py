@@ -6,7 +6,8 @@ import uvicorn
 from fastapi import APIRouter, FastAPI
 from multiprocess import Queue
 
-from ..utils import ILifespan, Lifespans
+from kookit.logging import logger
+from kookit.utils import ILifespan, Lifespans
 
 
 class KookitHTTPServer:
@@ -16,8 +17,11 @@ class KookitHTTPServer:
         self.port: Final[int] = port
         self.url: Final[str] = f"http://{host}:{port}"
 
+    def __str__(self) -> str:
+        return "KookitHTTPServer"
+
     def wait(self, timeout: float | None = None) -> Any:
-        return self.queue.get(timeout)
+        return self.queue.get(timeout=timeout)
 
     def run(
         self,
@@ -25,7 +29,7 @@ class KookitHTTPServer:
         lifespans: Iterable[ILifespan],
     ) -> None:
         @asynccontextmanager
-        async def notify_lifespan(_app: FastAPI) -> AsyncIterator:
+        async def notify_lifespan(app: FastAPI) -> AsyncIterator:
             self.queue.put(True)
             yield
             self.queue.put(False)
@@ -43,5 +47,7 @@ class KookitHTTPServer:
                 notify_lifespan,
             )
         )
+
+        logger.trace(f"{self}: running uvicorn on port {self.port}")
 
         uvicorn.run(app, host=self.host, port=self.port)

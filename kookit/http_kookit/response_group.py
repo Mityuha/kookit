@@ -1,12 +1,12 @@
 import time
-from collections.abc import Mapping
 from typing import Any, Final
 
 from httpx import URL, Client
+from multiprocess import Value
 
 from kookit.logging import logger
-from ..http_models import KookitHTTPRequest, KookitHTTPResponse
 from .interfaces import IRequest
+from .models import KookitHTTPRequest, KookitHTTPResponse
 
 
 class ResponseGroup:
@@ -18,14 +18,14 @@ class ResponseGroup:
         self._parent: Final = parent
         self._response: Final = response
         self._requests: list[KookitHTTPRequest] = []
-        self._active: bool = True
+        self._active: Value = Value("i", 1)
 
     @property
     def active(self) -> bool:
-        return self._active
+        return bool(self._active.value)
 
     def __str__(self) -> str:
-        return f"<ResponseGroup([{self._parent}], '{self.method}', '{self.url}'>"
+        return f"<ResponseGroup({self._parent}, '{self.method}', '{self.url}'>"
 
     def add_requests(self, *requests: KookitHTTPRequest) -> None:
         self._requests.extend(requests)
@@ -33,6 +33,12 @@ class ResponseGroup:
     @property
     def response(self) -> KookitHTTPResponse | None:
         return self._response
+
+    @property
+    def request(self) -> Any | None:
+        if not self._response:
+            return None
+        return self._response.request
 
     @property
     def url(self) -> URL | None:
@@ -58,18 +64,6 @@ class ResponseGroup:
             return b""
         return self.response.request.url.query
 
-    @property
-    def content(self) -> bytes:
-        if not self.response:
-            return b""
-        return self.response.request.content
-
-    @property
-    def headers(self) -> Mapping[str, str]:
-        if not self.response:
-            return {}
-        return self.response.request.headers or {}
-
     def __eq__(self, request: IRequest) -> bool:  # type: ignore
         if not self.response or not self.active:
             return False
@@ -92,13 +86,15 @@ class ResponseGroup:
             )
             return False
 
-        if self.content != request.content:
-            logger.trace(f"{self}: Expected body: '{self.content!r}', got: '{request.content!r}'")
+        req = self.response.request
+
+        if req.content != request.content:
+            logger.trace(f"{self}: Expected body: '{req.content!r}', got: '{request.content!r}'")
             return False
 
-        if self.headers and not all(it in request.headers.items() for it in self.headers.items()):
+        if req.headers and not all(it in request.headers.items() for it in req.headers.items()):
             logger.trace(
-                f"{self}: Expected headers: {dict(self.headers)}, got: {dict(request.headers)}"
+                f"{self}: Expected headers: {dict(req.headers)}, got: {dict(request.headers)}"
             )
             return False
 
@@ -107,6 +103,8 @@ class ResponseGroup:
                 f"{self}: Expected query params: '{self.query!r}', got: '{request.url.query!r}'"
             )
             return False
+
+        logger.trace(f"{self}: request {request} matched")
         return True
 
     def __enter__(self) -> "ResponseGroup":
@@ -131,4 +129,6 @@ class ResponseGroup:
                 logger.trace(
                     f"{self}: request <{req.method} {req.url}> successfully executed: {response}"
                 )
-        self._active = False
+
+        with self._active.get_lock():
+            self._active.value = 0

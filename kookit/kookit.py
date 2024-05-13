@@ -1,7 +1,7 @@
 from __future__ import annotations
 import os
+import sys
 import time
-from contextlib import AbstractAsyncContextManager
 from typing import Any, Final, Iterable, Mapping
 
 import anyio
@@ -9,15 +9,17 @@ from fastapi import APIRouter
 from pytest import fixture
 from pytest_mock import MockerFixture
 
-from ..http_models import KookitHTTPRequest, KookitHTTPResponse
-from ..logging import logger
-from ..utils import lvalue_from_assign
-from .client_side import KookitHTTPAsyncClient
-from .http_kookit import HTTPKookit
-from .interfaces import IKookitHTTPService
+from .client_side import KookitHTTPClient
+from .http_kookit import HTTPKookit, KookitHTTPRequest, KookitHTTPResponse
+from .interfaces import KookitHTTPService as IKookitHTTPService
+from .logging import logger
+from .utils import ILifespan, lvalue_from_assign
 
 
-class Kookit(KookitHTTPAsyncClient):
+__all__ = ["Kookit", "kookit"]
+
+
+class Kookit(KookitHTTPClient):
     def __init__(self, mocker: MockerFixture) -> None:
         self.mocker: Final[MockerFixture] = mocker
         self.http_kookit: Final = HTTPKookit(mocker)
@@ -50,7 +52,7 @@ class Kookit(KookitHTTPAsyncClient):
         unique_url: bool = False,
         actions: Iterable[KookitHTTPRequest | KookitHTTPResponse] = (),
         routers: Iterable[APIRouter] = (),
-        lifespans: Iterable[AbstractAsyncContextManager] = (),
+        lifespans: Iterable[ILifespan] = (),
         name: str = "",
     ) -> IKookitHTTPService:
         name = name or lvalue_from_assign()
@@ -71,6 +73,11 @@ class Kookit(KookitHTTPAsyncClient):
 
     def patch_env(self, new_env: Mapping[str, str]) -> None:
         self.mocker.patch.dict(os.environ, new_env)
+
+    @staticmethod
+    def show_logs() -> None:
+        logger.remove()
+        logger.add(sys.stdout, level="TRACE")
 
 
 @fixture
