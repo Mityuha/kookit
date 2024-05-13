@@ -2,18 +2,25 @@ from __future__ import annotations
 import os
 import sys
 import time
-from typing import Any, Final, Iterable, Mapping
+from typing import TYPE_CHECKING, Final, Iterable, Mapping
 
 import anyio
-from fastapi import APIRouter
-from pytest import fixture
-from pytest_mock import MockerFixture
+import pytest
+from typing_extensions import Self
 
 from .client_side import KookitHTTPClient
 from .http_kookit import HTTPKookit, KookitHTTPRequest, KookitHTTPResponse
-from .interfaces import KookitHTTPService as IKookitHTTPService
 from .logging import logger
 from .utils import ILifespan, lvalue_from_assign
+
+
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from fastapi import APIRouter
+    from pytest_mock import MockerFixture
+
+    from .interfaces import KookitHTTPService as IKookitHTTPService
 
 
 __all__ = ["Kookit", "kookit"]
@@ -28,22 +35,32 @@ class Kookit(KookitHTTPClient):
     def __str__(self) -> str:
         return "[kookit]"
 
-    def __enter__(self) -> "Kookit":
+    def __enter__(self) -> Self:
         logger.trace(f"{self}: starting services")
         for kookit in [self.http_kookit]:
             kookit.__enter__()
         return self
 
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(
+        self,
+        typ: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         logger.trace(f"{self}: stopping services")
         for kookit in [self.http_kookit]:
-            kookit.__exit__(*args)
+            kookit.__exit__(typ, exc, tb)
 
-    async def __aenter__(self) -> "Kookit":
+    async def __aenter__(self) -> Self:
         return self.__enter__()
 
-    async def __aexit__(self, *args: Any) -> None:
-        return self.__exit__(*args)
+    async def __aexit__(
+        self,
+        typ: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        return self.__exit__(typ, exc, tb)
 
     def new_http_service(
         self,
@@ -80,6 +97,7 @@ class Kookit(KookitHTTPClient):
         logger.add(sys.stdout, level="TRACE")
 
 
-@fixture
+@pytest.fixture()
 def kookit(mocker: MockerFixture) -> Iterable[Kookit]:
+    # ruff: noqa: PT022
     yield Kookit(mocker)

@@ -1,11 +1,14 @@
 from __future__ import annotations
-from types import TracebackType
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
-from fastapi import APIRouter
 
-from .http_kookit import KookitHTTPRequest, KookitHTTPResponse
-from .utils import ILifespan
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from fastapi import APIRouter
+
+    from .http_kookit import KookitHTTPRequest, KookitHTTPResponse
+    from .utils import ILifespan
 
 
 class KookitHTTPService(Protocol):
@@ -15,9 +18,19 @@ class KookitHTTPService(Protocol):
     def name(self) -> str: ...
     @property
     def __enter__(self) -> Any: ...
-    def __exit__(self, *args: Any) -> None: ...
+    def __exit__(
+        self,
+        typ: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None: ...
     async def __aenter__(self) -> Any: ...
-    async def __aexit__(self, *args: Any) -> None: ...
+    async def __aexit__(
+        self,
+        typ: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None: ...
     def add_actions(self, *actions: KookitHTTPResponse | KookitHTTPRequest) -> None: ...
     def add_lifespans(self, *lifespans: ILifespan) -> None: ...
     def add_routers(self, *routers: APIRouter) -> None: ...

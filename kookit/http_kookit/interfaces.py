@@ -1,10 +1,14 @@
-from collections.abc import Iterable, Mapping
-from typing import Any, Protocol
+from __future__ import annotations
+from typing import TYPE_CHECKING, Any, Protocol
 
-from fastapi import APIRouter
-from httpx import URL
 
-from kookit.utils import ILifespan
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Mapping
+
+    from fastapi import APIRouter
+    from httpx import URL
+
+    from kookit.utils import ILifespan
 
 
 class IRequest(Protocol):

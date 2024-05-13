@@ -29,7 +29,9 @@ class KookitHTTPServer:
         lifespans: Iterable[ILifespan],
     ) -> None:
         @asynccontextmanager
+        # ruff: noqa: ARG001
         async def notify_lifespan(app: FastAPI) -> AsyncIterator:
+            # ruff: noqa: FBT003
             self.queue.put(True)
             yield
             self.queue.put(False)
@@ -45,7 +47,7 @@ class KookitHTTPServer:
                 *lifespans,
                 routers_lifespan,
                 notify_lifespan,
-            )
+            ),
         )
 
         logger.trace(f"{self}: running uvicorn on port {self.port}")

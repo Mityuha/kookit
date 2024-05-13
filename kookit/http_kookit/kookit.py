@@ -3,17 +3,24 @@ import os
 import queue
 from contextlib import suppress
 from itertools import cycle
-from typing import Any, Final, Iterable
+from typing import TYPE_CHECKING, Final, Iterable
 
-from fastapi import APIRouter
 from multiprocess import Process
-from pytest_mock import MockerFixture
+from typing_extensions import Self
 
 from kookit.logging import logger
-from kookit.utils import ILifespan
-from .models import KookitHTTPRequest, KookitHTTPResponse
 from .server import KookitHTTPServer
 from .service import KookitHTTPService
+
+
+if TYPE_CHECKING:
+    from types import TracebackType
+
+    from fastapi import APIRouter
+    from pytest_mock import MockerFixture
+
+    from kookit.utils import ILifespan
+    from .models import KookitHTTPRequest, KookitHTTPResponse
 
 
 __all__ = ["HTTPKookit"]
@@ -60,7 +67,7 @@ class HTTPKookit:
         self.services.append(service)
         return service
 
-    def __enter__(self) -> "HTTPKookit":
+    def __enter__(self) -> Self:
         not_unique = []
         for service in self.services:
             service.__enter__()
@@ -77,11 +84,17 @@ class HTTPKookit:
             with suppress(queue.Empty):
                 is_started = self.server.wait()
                 if not is_started:
-                    raise ValueError(f"{self}: bad value received from server while starting")
+                    msg = f"{self}: bad value received from server while starting"
+                    raise ValueError(msg)
 
         return self
 
-    def __exit__(self, *args: Any) -> None:
+    def __exit__(
+        self,
+        typ: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         if self.server_process:
             logger.trace(f"{self}: stop server process ({self.server.url})")
             self.server_process.terminate()
@@ -90,9 +103,10 @@ class HTTPKookit:
             with suppress(queue.Empty):
                 is_started: bool = self.server.wait()
                 if is_started:
-                    raise ValueError(f"{self}: bad value received from server while stopping")
+                    msg = f"{self}: bad value received from server while stopping"
+                    raise ValueError(msg)
         else:
             logger.trace(f"{self}: server process already stopped")
 
         for service in self.services:
-            service.__exit__(*args)
+            service.__exit__(typ, exc, tb)

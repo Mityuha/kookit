@@ -1,20 +1,25 @@
 from __future__ import annotations
 import queue
-from collections.abc import Iterable, Sequence
 from contextlib import ExitStack, suppress
 from itertools import groupby
 from types import SimpleNamespace, TracebackType
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from multiprocess import Process
+from typing_extensions import Self
 
 from kookit.logging import logger
 from kookit.utils import ILifespan, Lifespans
-from .interfaces import IServer
 from .models import KookitHTTPRequest, KookitHTTPResponse
 from .response_group import ResponseGroup
+
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable, Sequence
+
+    from .interfaces import IServer
 
 
 class KookitHTTPService:
@@ -59,21 +64,29 @@ class KookitHTTPService:
     def __repr__(self) -> str:
         return str(self)
 
-    def __enter__(self) -> "KookitHTTPService":
+    def __enter__(self) -> Self:
         self.start()
         return self
 
-    def __exit__(self, *args: Any) -> None:
-        self.stop(*args)
-        return
+    def __exit__(
+        self,
+        typ: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.stop(typ, exc, tb)
 
-    async def __aenter__(self) -> "KookitHTTPService":
+    async def __aenter__(self) -> Self:
         self.start()
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
-        self.stop(*args)
-        return
+    async def __aexit__(
+        self,
+        typ: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        self.stop(typ, exc, tb)
 
     def add_actions(self, *actions: KookitHTTPResponse | KookitHTTPRequest) -> None:
         self.actions.extend(actions)
@@ -130,12 +143,13 @@ class KookitHTTPService:
         self._server_process.start()
 
         logger.trace(
-            f"{self}: waiting for server process to start ({wait_for_start_timeout} seconds)"
+            f"{self}: waiting for server process to start ({wait_for_start_timeout} seconds)",
         )
         with suppress(queue.Empty):
             is_started = self.server.wait(wait_for_start_timeout)
             if not is_started:
-                raise ValueError(f"{self}: bad value received from server while starting")
+                msg = f"{self}: bad value received from server while starting"
+                raise ValueError(msg)
         logger.trace(f"{self}: server process successfully started")
 
     def stop(
@@ -159,12 +173,14 @@ class KookitHTTPService:
             with suppress(queue.Empty):
                 is_started: bool = self.server.wait(wait_for_stop_timeout)
                 if is_started:
-                    raise ValueError(f"{self}: bad value received from server while stopping")
+                    msg = f"{self}: bad value received from server while stopping"
+                    raise ValueError(msg)
 
         active_groups = [group for group in self._response_groups if group.active]
         if active_groups and not any([exc_type, exc_val, exc_tb]):
+            msg = f"{self}: active groups left: {', '.join(str(g) for g in active_groups)}"
             raise RuntimeError(
-                f"{self}: active groups left: {', '.join(str(g) for g in active_groups)}"
+                msg,
             )
 
         self._response_groups = []
@@ -177,14 +193,15 @@ class KookitHTTPService:
     ) -> Sequence[ResponseGroup]:
         groups: list[ResponseGroup] = []
         for is_request, group in groupby(
-            actions, key=lambda key: isinstance(key, KookitHTTPRequest)
+            actions,
+            key=lambda key: isinstance(key, KookitHTTPRequest),
         ):
             if is_request:
                 if not groups:
                     groups.append(ResponseGroup(parent=parent))
-                groups[-1].add_requests(*group)  # type: ignore
+                groups[-1].add_requests(*group)  # type: ignore[arg-type]
             else:
-                groups.extend(ResponseGroup(response, parent=parent) for response in group)  # type: ignore
+                groups.extend(ResponseGroup(response, parent=parent) for response in group)  # type: ignore[arg-type]
 
         return groups
 
@@ -204,11 +221,14 @@ class KookitHTTPService:
 
         if not group:
             return JSONResponse(
-                {"error": f"{self}: cannot find response for request: {request}"}, status_code=400
+                {"error": f"{self}: cannot find response for request: {request}"},
+                status_code=400,
             )
 
         with group:
-            assert group.response
+            if not group.response:
+                msg = "Response group should specify response"
+                raise ValueError(msg)
             return Response(
                 content=group.response.content,
                 media_type=group.response.headers["content-type"],

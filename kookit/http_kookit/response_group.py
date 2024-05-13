@@ -1,12 +1,17 @@
+from __future__ import annotations
 import time
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
 
 from httpx import URL, Client
 from multiprocess import Value
+from typing_extensions import Self
 
 from kookit.logging import logger
-from .interfaces import IRequest
-from .models import KookitHTTPRequest, KookitHTTPResponse
+
+
+if TYPE_CHECKING:
+    from .interfaces import IRequest
+    from .models import KookitHTTPRequest, KookitHTTPResponse
 
 
 class ResponseGroup:
@@ -64,7 +69,8 @@ class ResponseGroup:
             return b""
         return self.response.request.url.query
 
-    def __eq__(self, request: IRequest) -> bool:  # type: ignore
+    # ruff: noqa: PLR0911
+    def __eq__(self, request: IRequest) -> bool:  # type: ignore[override]
         if not self.response or not self.active:
             return False
 
@@ -76,13 +82,14 @@ class ResponseGroup:
             expected_url_path = self.path.format(**request.path_params)
         except KeyError:
             logger.trace(
-                f"{self}: Incomparable url path. Expected url path: {self.path}, got: {request.url.path}"
+                f"{self}: Incomparable url path. Expected url path: {self.path}, "
+                f"got: {request.url.path}",
             )
             return False
 
         if expected_url_path != request.url.path:
             logger.trace(
-                f"{self}: Expected url path: {expected_url_path}, got: {request.url.path}"
+                f"{self}: Expected url path: {expected_url_path}, got: {request.url.path}",
             )
             return False
 
@@ -94,27 +101,28 @@ class ResponseGroup:
 
         if req.headers and not all(it in request.headers.items() for it in req.headers.items()):
             logger.trace(
-                f"{self}: Expected headers: {dict(req.headers)}, got: {dict(request.headers)}"
+                f"{self}: Expected headers: {dict(req.headers)}, got: {dict(request.headers)}",
             )
             return False
 
         if self.query and self.query.decode("ascii") != request.url.query:
             logger.trace(
-                f"{self}: Expected query params: '{self.query!r}', got: '{request.url.query!r}'"
+                f"{self}: Expected query params: '{self.query!r}', got: '{request.url.query!r}'",
             )
             return False
 
         logger.trace(f"{self}: request {request} matched")
         return True
 
-    def __enter__(self) -> "ResponseGroup":
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, *_args: Any) -> None:
+    def __exit__(self, *_args: object) -> None:
         logger.trace(f"{self}: running {len(self._requests)} requests")
         for req in self._requests:
             logger.debug(
-                f"{self}: running request <{req.method} {req.url}> ({req.service.url=}, {req.request_delay=}))"
+                f"{self}: running request <{req.method} {req.url}> ({req.service.url=}, "
+                f"{req.request_delay=}))",
             )
             time.sleep(req.request_delay)
             with Client(base_url=req.service.url) as client:
@@ -127,7 +135,7 @@ class ResponseGroup:
                 )
 
                 logger.trace(
-                    f"{self}: request <{req.method} {req.url}> successfully executed: {response}"
+                    f"{self}: request <{req.method} {req.url}> successfully executed: {response}",
                 )
 
         with self._active.get_lock():
