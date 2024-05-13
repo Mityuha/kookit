@@ -1,7 +1,11 @@
 from __future__ import annotations
-from typing import Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping
 
-from .request import URL, IKookitService, KookitHTTPRequest, QueryParamTypes
+from .request import URL, IKookitService, KookitHTTPRequest
+
+
+if TYPE_CHECKING:
+    from httpx._types import QueryParamTypes
 
 
 class KookitJSONRequest(KookitHTTPRequest):

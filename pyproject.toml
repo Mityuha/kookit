@@ -93,6 +93,7 @@ ignore = [
     "D101",
     "D102",
     "D103",
+    "D104",
     "D105",
     "D107",
     "ANN101",
@@ -108,7 +109,6 @@ select = ["ALL"]
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "F403"]
 "tests/*py" = [
-    "D104",
     "ANN001",
     "ANN002",
     "ANN003",
@@ -141,10 +141,10 @@ envlist = py38,py39,py310,py311,py312
 
 [testenv]
 deps =
-    mypy==1.5.1
-    ruff==0.1.4
+    mypy==1.10.0
+    ruff==0.4.4
 
-    multiprocess==0.70.15
+    multiprocess==0.70.16
     fastapi==0.98.0
     uvicorn==0.23.2
     httpx==0.24.1
