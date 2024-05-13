@@ -1,4 +1,5 @@
-from typing import Any, Mapping, Optional, Union
+from __future__ import annotations
+from typing import Any, Mapping
 
 from .request import URL, IKookitService, KookitHTTPRequest, QueryParamTypes
 
@@ -9,10 +10,10 @@ class KookitJSONRequest(KookitHTTPRequest):
         service: IKookitService,
         *,
         json: Any,
-        url: Union[str, URL] = "/",
+        url: str | URL = "/",
         method: str = "POST",
-        headers: Optional[Mapping] = None,
-        params: Optional[QueryParamTypes] = None,
+        headers: Mapping | None = None,
+        params: QueryParamTypes | None = None,
         request_delay: float = 0.0,
     ) -> None:
         super().__init__(

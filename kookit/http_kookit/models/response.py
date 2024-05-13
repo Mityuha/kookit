@@ -1,14 +1,24 @@
+from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Final, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Any, Final, Mapping
 
 from httpx import URL, Request, Response
-from httpx._types import HeaderTypes, QueryParamTypes, RequestContent, RequestData, RequestFiles
+
+
+if TYPE_CHECKING:
+    from httpx._types import (
+        HeaderTypes,
+        QueryParamTypes,
+        RequestContent,
+        RequestData,
+        RequestFiles,
+    )
 
 
 @dataclass
 class KookitResponseRequest:
     content: bytes
-    headers: Optional[Mapping[str, str]]
+    headers: Mapping[str, str] | None
     url: URL
     method: str
 
@@ -16,24 +26,24 @@ class KookitResponseRequest:
 class KookitHTTPResponse:
     def __init__(
         self,
-        url: Union[URL, str],
-        method: Union[str, bytes],
+        url: URL | str,
+        method: str | bytes,
         *,
         status_code: int = 200,
         http_version: str = "HTTP/1.1",
-        headers: Optional[Mapping] = None,
-        content: Optional[bytes] = None,
-        text: Optional[str] = None,
-        html: Optional[str] = None,
+        headers: Mapping | None = None,
+        content: bytes | None = None,
+        text: str | None = None,
+        html: str | None = None,
         json: Any = None,
         stream: Any = None,
         # Request matchers here
-        request_params: Optional[QueryParamTypes] = None,
-        request_headers: Optional[HeaderTypes] = None,
-        request_content: Optional[RequestContent] = None,
-        request_data: Optional[RequestData] = None,
-        request_files: Optional[RequestFiles] = None,
-        request_json: Optional[Any] = None,
+        request_params: QueryParamTypes | None = None,
+        request_headers: HeaderTypes | None = None,
+        request_content: RequestContent | None = None,
+        request_data: RequestData | None = None,
+        request_files: RequestFiles | None = None,
+        request_json: Any | None = None,
     ) -> None:
         request = Request(
             url=url,
@@ -61,7 +71,7 @@ class KookitHTTPResponse:
 
         self.request: Final[KookitResponseRequest] = KookitResponseRequest(
             content=request.content,
-            headers=request_headers,  # type: ignore
+            headers=request_headers,  # type: ignore[arg-type]
             url=request.url,
             method=request.method,
         )

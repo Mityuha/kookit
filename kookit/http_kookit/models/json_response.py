@@ -1,4 +1,5 @@
-from typing import Any, Mapping, Optional
+from __future__ import annotations
+from typing import Any, Mapping
 
 from .response import KookitHTTPResponse
 
@@ -11,7 +12,7 @@ class KookitJSONResponse(KookitHTTPResponse):
         url: str = "/",
         method: str = "GET",
         status_code: int = 200,
-        headers: Optional[Mapping] = None,
+        headers: Mapping | None = None,
         **request_matchers: Any,
     ) -> None:
         super().__init__(

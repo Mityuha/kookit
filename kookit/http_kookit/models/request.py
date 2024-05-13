@@ -1,7 +1,17 @@
-from typing import Any, Final, Mapping, Optional, Protocol, Union
+from __future__ import annotations
+from typing import TYPE_CHECKING, Any, Final, Mapping, Protocol
 
 from httpx import URL, Request
-from httpx._types import HeaderTypes, QueryParamTypes, RequestContent, RequestData, RequestFiles
+
+
+if TYPE_CHECKING:
+    from httpx._types import (
+        HeaderTypes,
+        QueryParamTypes,
+        RequestContent,
+        RequestData,
+        RequestFiles,
+    )
 
 
 class IKookitService(Protocol):
@@ -14,14 +24,14 @@ class KookitHTTPRequest:
         self,
         service: IKookitService,
         *,
-        url: Union[URL, str],
-        method: Union[str, bytes],
-        params: Optional[QueryParamTypes] = None,
-        headers: Optional[HeaderTypes] = None,
-        content: Optional[RequestContent] = None,
-        data: Optional[RequestData] = None,
-        files: Optional[RequestFiles] = None,
-        json: Optional[Any] = None,
+        url: URL | str,
+        method: str | bytes,
+        params: QueryParamTypes | None = None,
+        headers: HeaderTypes | None = None,
+        content: RequestContent | None = None,
+        data: RequestData | None = None,
+        files: RequestFiles | None = None,
+        json: Any | None = None,
         request_delay: float = 0.0,
     ) -> None:
         self.service: Final[IKookitService] = service
