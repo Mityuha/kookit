@@ -138,7 +138,8 @@ class ResponseGroup:
                 )
 
                 logger.trace(
-                    f"{self}: request <{req.method} {req.url}> successfully executed: {response}",
+                    f"{self}: request <{req.method} {req.url}> "
+                    f"successfully executed ==> {response}",
                 )
 
         with self._active.get_lock():
