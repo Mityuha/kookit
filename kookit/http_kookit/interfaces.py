@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Mapping
+    from collections.abc import Callable, Iterable, Mapping
 
     from fastapi import APIRouter
     from httpx import URL
@@ -32,7 +32,7 @@ class IServer(Protocol):
     def wait(self, timeout: float | None = None) -> Any: ...
     def run(
         self,
-        routers: Iterable[APIRouter],
+        routers: Iterable[Callable[[], APIRouter]],
         lifespans: Iterable[ILifespan],
     ) -> None: ...
 
