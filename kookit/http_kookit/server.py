@@ -1,6 +1,6 @@
 from __future__ import annotations
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, AsyncIterator, Final, Iterable
+from typing import TYPE_CHECKING, Any, Final
 
 import uvicorn
 from fastapi import APIRouter, FastAPI
@@ -11,7 +11,7 @@ from kookit.utils import ILifespan, Lifespans
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import AsyncIterator, Callable, Iterable
 
 
 class KookitHTTPServer:
