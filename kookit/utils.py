@@ -1,18 +1,20 @@
 from __future__ import annotations
 import contextlib
 import json
-from collections.abc import Callable
+import sys
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from traceback import extract_stack
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 from uuid import UUID
 
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-
-ILifespan = Callable[[Any], AbstractAsyncContextManager[None]]
+if sys.version_info >= (3, 9):
+    ILifespan = Callable[[Any], AbstractAsyncContextManager[None]]
+else:
+    ILifespan = Callable[[Any], AbstractAsyncContextManager]
 
 
 class Lifespans:
