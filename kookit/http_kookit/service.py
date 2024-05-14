@@ -107,7 +107,6 @@ class KookitHTTPService:
     def add_routers(self, *routers: APIRouter) -> None:
         self.routers.extend(routers)
 
-    @property
     def router(self) -> APIRouter:
         router = APIRouter()
         for r in self.routers:
@@ -120,6 +119,8 @@ class KookitHTTPService:
                     self.__call__,
                     methods=[group.method],
                 )
+
+        logger.trace(f"{self}: routes: {chr(10).join(str(r) for r in router.routes)}")
         return router
 
     @property

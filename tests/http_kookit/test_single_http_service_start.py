@@ -31,6 +31,7 @@ def test_single_service_response(
     resp_json: dict = faker.pydict(value_types=(float, int, str))
     uri_path: str = f"/{faker.uri_path()}"
     headers: dict = faker.pydict(value_types=(str,))
+    lifespans = [lifespan_gen(), lifespan_gen()]
     service = kookit.new_http_service(
         env_var,
         unique_url=True,
@@ -43,7 +44,7 @@ def test_single_service_response(
                 headers=headers,
             )
         ],
-        lifespans=[lifespan_gen(), lifespan_gen()],
+        lifespans=lifespans,
         routers=[router],
     )
     assert os.environ[env_var] == service.url
@@ -60,3 +61,4 @@ def test_single_service_response(
     assert response.json() == resp_json
 
     assert router_response.json() == ROUTER_RESPONSE
+    assert all(lifespan.is_called for lifespan in lifespans)

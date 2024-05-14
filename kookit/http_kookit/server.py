@@ -1,6 +1,6 @@
 from __future__ import annotations
 from contextlib import asynccontextmanager
-from typing import Any, AsyncIterator, Final, Iterable
+from typing import TYPE_CHECKING, Any, AsyncIterator, Final, Iterable
 
 import uvicorn
 from fastapi import APIRouter, FastAPI
@@ -8,6 +8,10 @@ from multiprocess import Queue
 
 from kookit.logging import logger
 from kookit.utils import ILifespan, Lifespans
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class KookitHTTPServer:
@@ -25,7 +29,7 @@ class KookitHTTPServer:
 
     def run(
         self,
-        routers: Iterable[APIRouter],
+        routers: Iterable[Callable[[], APIRouter]],
         lifespans: Iterable[ILifespan],
     ) -> None:
         @asynccontextmanager
@@ -39,7 +43,7 @@ class KookitHTTPServer:
         @asynccontextmanager
         async def routers_lifespan(app: FastAPI) -> AsyncIterator:
             for router in routers:
-                app.include_router(router)
+                app.include_router(router())
             yield
 
         app: FastAPI = FastAPI(

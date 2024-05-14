@@ -1,9 +1,10 @@
 from __future__ import annotations
 import contextlib
 import json
+from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from traceback import extract_stack
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 
@@ -11,8 +12,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 
-class ILifespan(Protocol):
-    def __call__(self, app: Any) -> AbstractAsyncContextManager[None]: ...
+ILifespan = Callable[[Any], AbstractAsyncContextManager[None]]
 
 
 class Lifespans:
