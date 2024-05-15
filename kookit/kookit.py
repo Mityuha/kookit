@@ -34,6 +34,12 @@ class Kookit(KookitHTTPClient):
     def __str__(self) -> str:
         return "[kookit]"
 
+    def __call__(self, startup_timeout: float) -> Self:
+        for kookit in [self.http_kookit]:
+            kookit(startup_timeout=startup_timeout)
+
+        return self
+
     def __enter__(self) -> Self:
         logger.trace(f"{self}: starting services")
         for kookit in [self.http_kookit]:

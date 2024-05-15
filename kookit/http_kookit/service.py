@@ -1,6 +1,5 @@
 from __future__ import annotations
-import queue
-from contextlib import ExitStack, suppress
+from contextlib import ExitStack
 from itertools import groupby
 from threading import Thread
 from types import SimpleNamespace, TracebackType
@@ -12,7 +11,7 @@ from multiprocess import Process
 from typing_extensions import Self
 
 from kookit.logging import logger
-from kookit.utils import ILifespan, Lifespans
+from kookit.utils import ILifespan, Lifespans, ProcessManager
 from .models import KookitHTTPRequest, KookitHTTPResponse
 from .response_group import ResponseGroup
 
@@ -24,6 +23,8 @@ if TYPE_CHECKING:
 
 
 class KookitHTTPService:
+    DEFAULT_STARTUP_TIMEOUT: Final = 3
+
     def __init__(
         self,
         *,
@@ -49,8 +50,15 @@ class KookitHTTPService:
         self._name: Final = name
         self._one_off: Final = one_off
 
-        self._server_process: Process | None = None
+        self._process_manager: ProcessManager | None = None
         self._active: bool = False
+        self._startup_timeout: float = self.DEFAULT_STARTUP_TIMEOUT
+
+    def __call__(self, startup_timeout: float) -> Self:
+        if self._startup_timeout == self.DEFAULT_STARTUP_TIMEOUT:
+            self._startup_timeout = startup_timeout
+
+        return self
 
     @property
     def url(self) -> str:
@@ -116,7 +124,7 @@ class KookitHTTPService:
             if group.response:
                 router.add_api_route(
                     group.path,
-                    self.__call__,
+                    self.__endpoint__,
                     methods=[group.method],
                 )
 
@@ -127,7 +135,7 @@ class KookitHTTPService:
     def lifespan(self) -> ILifespan:
         return Lifespans(*self.lifespans)
 
-    def start(self, *, wait_for_start_timeout: float | None = None) -> None:
+    def start(self) -> None:
         if self._active:
             logger.trace(f"{self}: service already started")
             return
@@ -139,23 +147,19 @@ class KookitHTTPService:
                 stack.enter_context(group) for group in self._response_groups if not group.response
             ]
 
-        if self._unique_url and not self._server_process:
+        if self._unique_url and not self._process_manager:
             logger.trace(f"{self}: starting server process [{self.url}]")
-            self._server_process = Process(
+            server_process = Process(
                 target=self.server.run,
                 args=([self.router], [self.lifespan]),
             )
-            self._server_process.start()
-
-            logger.trace(
-                f"{self}: waiting for server process to start ({wait_for_start_timeout} seconds)",
+            self._process_manager = ProcessManager(
+                server_process,
+                startup_timeout=self._startup_timeout,
+                parent=f"{self}[{self.url}]",
+                wait_func=self.server.wait,
             )
-            with suppress(queue.Empty):
-                is_started = self.server.wait(wait_for_start_timeout)
-                if not is_started:
-                    msg = f"{self}: bad value received from server while starting"
-                    raise ValueError(msg)
-            logger.trace(f"{self}: server process successfully started")
+            self._process_manager.__enter__()
 
         self._active = True
 
@@ -164,31 +168,21 @@ class KookitHTTPService:
         exc_type: type[BaseException] | None = None,
         exc_val: BaseException | None = None,
         exc_tb: TracebackType | None = None,
-        *,
-        wait_for_stop_timeout: float | None = None,
     ) -> None:
         if self._one_off:
             self.actions.clear()
             self.routers.clear()
             self.lifespans.clear()
 
-        if self._unique_url and self._server_process:
+        if self._unique_url and self._process_manager:
             logger.trace(f"{self}: stop server process")
-            self._server_process.terminate()
-            self._server_process = None
-
-            with suppress(queue.Empty):
-                is_started: bool = self.server.wait(wait_for_stop_timeout)
-                if is_started:
-                    msg = f"{self}: bad value received from server while stopping"
-                    raise ValueError(msg)
+            self._process_manager.__exit__(exc_type, exc_val, exc_tb)
+            self._process_manager = None
 
         active_groups = [group for group in self._response_groups if group.active]
         if active_groups and not any([exc_type, exc_val, exc_tb]):
             msg = f"{self}: active groups left: {', '.join(str(g) for g in active_groups)}"
-            raise RuntimeError(
-                msg,
-            )
+            raise RuntimeError(msg)
 
         self._response_groups = []
         self._active = False
@@ -213,7 +207,7 @@ class KookitHTTPService:
 
         return groups
 
-    async def __call__(self, request: Request) -> Response:
+    async def __endpoint__(self, request: Request) -> Response:
         group: ResponseGroup | None = None
         cmp_request = SimpleNamespace(
             content=await request.body(),

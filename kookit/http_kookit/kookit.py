@@ -1,8 +1,5 @@
 from __future__ import annotations
 import os
-import queue
-import time
-from contextlib import suppress
 from itertools import cycle
 from typing import TYPE_CHECKING, Final, Iterable
 
@@ -10,6 +7,7 @@ from multiprocess import Process
 from typing_extensions import Self
 
 from kookit.logging import logger
+from kookit.utils import ProcessManager
 from .server import KookitHTTPServer
 from .service import KookitHTTPService
 
@@ -34,7 +32,14 @@ class HTTPKookit:
         self.mocker: Final[MockerFixture] = mocker
         self.server: Final[KookitHTTPServer] = KookitHTTPServer(next(self.server_port))
         self.services: Final[list[KookitHTTPService]] = []
-        self.server_process: Process | None = None
+        self.process_manager: ProcessManager | None = None
+        self.startup_timeout: float = KookitHTTPService.DEFAULT_STARTUP_TIMEOUT
+
+    def __call__(self, startup_timeout: float) -> Self:
+        self.startup_timeout = startup_timeout
+        for service in self.services:
+            service(startup_timeout=startup_timeout)
+        return self
 
     def __str__(self) -> str:
         return "[HTTPKookit]"
@@ -73,22 +78,22 @@ class HTTPKookit:
         # 2. start all other services' servers.
         not_unique = [s for s in self.services if not s.unique_url]
 
-        if not_unique and not self.server_process:
-            self.server_process = Process(
+        if not_unique and not self.process_manager:
+            server_process = Process(
                 target=self.server.run,
                 args=(
                     [s.router for s in not_unique],
                     [s.lifespan for s in not_unique],
                 ),
             )
-            self.server_process.start()
-            time.sleep(0.01)
 
-            with suppress(queue.Empty):
-                is_started = self.server.wait()
-                if not is_started:
-                    msg = f"{self}: bad value received from server while starting"
-                    raise ValueError(msg)
+            self.process_manager = ProcessManager(
+                server_process,
+                startup_timeout=self.startup_timeout,
+                parent=f"{self}[{self.server.url}]",
+                wait_func=self.server.wait,
+            )
+            self.process_manager.__enter__()
 
         for service in self.services:
             service.__enter__()
@@ -103,18 +108,9 @@ class HTTPKookit:
     ) -> None:
         # 1. stop global service
         # 2. stop all other services' servers
-        if self.server_process:
-            logger.trace(f"{self}: stop server process ({self.server.url})")
-            self.server_process.terminate()
-            time.sleep(0.01)
-
-            self.server_process = None
-
-            with suppress(queue.Empty):
-                is_started: bool = self.server.wait()
-                if is_started:
-                    msg = f"{self}: bad value received from server while stopping"
-                    raise ValueError(msg)
+        if self.process_manager:
+            self.process_manager.__exit__(typ, exc, tb)
+            self.process_manager = None
         else:
             logger.trace(f"{self}: server process already stopped")
 

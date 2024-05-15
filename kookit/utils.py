@@ -2,14 +2,21 @@ from __future__ import annotations
 import contextlib
 import json
 import sys
+import time
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from traceback import extract_stack
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Final
 from uuid import UUID
+
+from kookit.logging import logger
 
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
+    from types import TracebackType
+
+    from multiprocess import Process
+    from typing_extensions import Self
 
 if sys.version_info >= (3, 9):
     ILifespan = Callable[[Any], AbstractAsyncContextManager[None]]
@@ -49,3 +56,52 @@ class UUIDEncoder(json.JSONEncoder):
         if isinstance(value, UUID):
             return str(value)
         return super().default(value)
+
+
+class ProcessManager:
+    def __init__(
+        self,
+        process: Process,
+        *,
+        startup_timeout: float,
+        parent: Any,
+        wait_func: Callable[[float], bool],
+    ) -> None:
+        self.process: Final = process
+        self.startup_timeout: Final = startup_timeout
+        self.parent: Final = parent
+        self.wait_func: Final = wait_func
+
+    def __repr__(self) -> str:
+        return self.parent
+
+    def __enter__(self) -> Self:
+        self.process.start()
+        time.sleep(0.01)
+
+        logger.trace(
+            f"{self}: waiting for process to start ({self.startup_timeout} seconds)",
+        )
+        is_started: bool = self.wait_func(self.startup_timeout)
+
+        if not is_started:
+            logger.trace(
+                f"{self}: process didn't respond for {self.startup_timeout} seconds. Stopping."
+            )
+            self.__exit__(None, None, None)
+            msg = f"{self}: process was not started. Check logs."
+            raise RuntimeError(msg)
+
+        return self
+
+    def __exit__(
+        self,
+        typ: type[BaseException] | None,
+        exc: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
+        logger.trace(f"{self}: stopping server process")
+        self.process.terminate()
+        logger.trace(f"{self}: waiting for process to join")
+        self.process.join()
+        logger.trace(f"{self}: process joined")

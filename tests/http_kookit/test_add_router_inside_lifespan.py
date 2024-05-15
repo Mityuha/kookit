@@ -17,13 +17,8 @@ async def read_users() -> list:
 
 
 def test_add_router_inside_lifespan(
-    faker: Any,
     kookit: Kookit,
 ) -> None:
-    kookit.show_logs()
-    faker.pydict(value_types=(float, int, str))
-    f"/{faker.uri_path()}"
-    faker.pydict(value_types=(str,))
     service = kookit.new_http_service()
 
     @asynccontextmanager

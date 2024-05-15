@@ -1,4 +1,5 @@
 from __future__ import annotations
+import queue
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, Final
 
@@ -25,7 +26,10 @@ class KookitHTTPServer:
         return "[KookitHTTPServer]"
 
     def wait(self, timeout: float | None = None) -> Any:
-        return self.queue.get(timeout=timeout)
+        try:
+            return self.queue.get(timeout=timeout)
+        except queue.Empty:
+            return False
 
     def run(
         self,
