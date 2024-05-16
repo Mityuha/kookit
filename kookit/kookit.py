@@ -12,7 +12,7 @@ from .client_side import KookitHTTPClient
 from .http_kookit import HTTPKookit, KookitHTTPRequest, KookitHTTPResponse
 from .interfaces import IKookitHTTPService
 from .logging import logger
-from .utils import ILifespan, lvalue_from_assign
+from .utils import ILifespan, ProcessManager, lvalue_from_assign
 
 
 if TYPE_CHECKING:
@@ -34,9 +34,17 @@ class Kookit(KookitHTTPClient):
     def __str__(self) -> str:
         return "[kookit]"
 
-    def __call__(self, startup_timeout: float) -> Self:
+    def __call__(
+        self,
+        startup_timeout: float = ProcessManager.DEFAULT_STARTUP_TIMEOUT,
+        *,
+        shutdown_timeout: float = ProcessManager.DEFAULT_SHUTDOWN_TIMEOUT,
+    ) -> Self:
         for kookit in [self.http_kookit]:
-            kookit(startup_timeout=startup_timeout)
+            kookit(
+                startup_timeout=startup_timeout,
+                shutdown_timeout=shutdown_timeout,
+            )
 
         return self
 

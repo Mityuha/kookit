@@ -33,12 +33,22 @@ class HTTPKookit:
         self.server: Final[KookitHTTPServer] = KookitHTTPServer(next(self.server_port))
         self.services: Final[list[KookitHTTPService]] = []
         self.process_manager: ProcessManager | None = None
-        self.startup_timeout: float = KookitHTTPService.DEFAULT_STARTUP_TIMEOUT
+        self.startup_timeout: float = ProcessManager.DEFAULT_STARTUP_TIMEOUT
+        self.shutdown_timeout: float = ProcessManager.DEFAULT_SHUTDOWN_TIMEOUT
 
-    def __call__(self, startup_timeout: float) -> Self:
+    def __call__(
+        self,
+        startup_timeout: float = ProcessManager.DEFAULT_STARTUP_TIMEOUT,
+        *,
+        shutdown_timeout: float = ProcessManager.DEFAULT_SHUTDOWN_TIMEOUT,
+    ) -> Self:
         self.startup_timeout = startup_timeout
+        self.shutdown_timeout = shutdown_timeout
         for service in self.services:
-            service(startup_timeout=startup_timeout)
+            service(
+                startup_timeout=startup_timeout,
+                shutdown_timeout=shutdown_timeout,
+            )
         return self
 
     def __str__(self) -> str:
@@ -90,6 +100,7 @@ class HTTPKookit:
             self.process_manager = ProcessManager(
                 server_process,
                 startup_timeout=self.startup_timeout,
+                shutdown_timeout=self.shutdown_timeout,
                 parent=f"{self}[{self.server.url}]",
                 wait_func=self.server.wait,
             )

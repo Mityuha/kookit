@@ -23,8 +23,6 @@ if TYPE_CHECKING:
 
 
 class KookitHTTPService:
-    DEFAULT_STARTUP_TIMEOUT: Final = 3
-
     def __init__(
         self,
         *,
@@ -52,11 +50,19 @@ class KookitHTTPService:
 
         self._process_manager: ProcessManager | None = None
         self._active: bool = False
-        self._startup_timeout: float = self.DEFAULT_STARTUP_TIMEOUT
+        self._startup_timeout: float = ProcessManager.DEFAULT_STARTUP_TIMEOUT
+        self._shutdown_timeout: float = ProcessManager.DEFAULT_SHUTDOWN_TIMEOUT
 
-    def __call__(self, startup_timeout: float) -> Self:
-        if self._startup_timeout == self.DEFAULT_STARTUP_TIMEOUT:
+    def __call__(
+        self,
+        startup_timeout: float = ProcessManager.DEFAULT_STARTUP_TIMEOUT,
+        *,
+        shutdown_timeout: float = ProcessManager.DEFAULT_SHUTDOWN_TIMEOUT,
+    ) -> Self:
+        if self._startup_timeout == ProcessManager.DEFAULT_STARTUP_TIMEOUT:
             self._startup_timeout = startup_timeout
+        if self._shutdown_timeout == ProcessManager.DEFAULT_SHUTDOWN_TIMEOUT:
+            self._shutdown_timeout = shutdown_timeout
 
         return self
 
@@ -156,6 +162,7 @@ class KookitHTTPService:
             self._process_manager = ProcessManager(
                 server_process,
                 startup_timeout=self._startup_timeout,
+                shutdown_timeout=self._shutdown_timeout,
                 parent=f"{self}[{self.url}]",
                 wait_func=self.server.wait,
             )

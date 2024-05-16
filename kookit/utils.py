@@ -59,11 +59,15 @@ class UUIDEncoder(json.JSONEncoder):
 
 
 class ProcessManager:
+    DEFAULT_STARTUP_TIMEOUT: Final = 3
+    DEFAULT_SHUTDOWN_TIMEOUT: Final = 3
+
     def __init__(
         self,
         process: Process,
         *,
         startup_timeout: float,
+        shutdown_timeout: float,
         parent: Any,
         wait_func: Callable[[float], bool],
     ) -> None:
@@ -71,6 +75,7 @@ class ProcessManager:
         self.startup_timeout: Final = startup_timeout
         self.parent: Final = parent
         self.wait_func: Final = wait_func
+        self.shutdown_timeout: Final = shutdown_timeout
 
     def __repr__(self) -> str:
         return self.parent
@@ -102,6 +107,10 @@ class ProcessManager:
     ) -> None:
         logger.trace(f"{self}: stopping server process")
         self.process.terminate()
-        logger.trace(f"{self}: waiting for process to join")
-        self.process.join()
-        logger.trace(f"{self}: process joined")
+        logger.trace(f"{self}: waiting for process to join ({self.shutdown_timeout} seconds)")
+        self.process.join(self.shutdown_timeout)
+        if self.process.exitcode is None:
+            self.process.kill()
+            self.process.join(self.shutdown_timeout)
+
+        logger.trace(f"{self}: process joined ({self.process.exitcode})")
