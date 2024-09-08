@@ -58,6 +58,7 @@ def test_zero_content_length_header_as_expected(
             method=method,
             status_code=random_status_code,
             request_headers=headers,
+            request_json=None,
         )
     )
 
