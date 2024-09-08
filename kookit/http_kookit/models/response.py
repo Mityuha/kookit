@@ -2,13 +2,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from json import dumps as json_dumps
 from json import loads as json_loads
-from typing import TYPE_CHECKING, Any, Final, Mapping, cast
+from typing import TYPE_CHECKING, Any, Final, Mapping
 
 from httpx import URL, Request, Response
-from httpx._types import (
-    RequestContent,
-    RequestFiles,
-)
 
 from kookit.utils import UUIDEncoder
 from .utils import none_if_ellipsis
@@ -20,7 +16,9 @@ if TYPE_CHECKING:
     from httpx._types import (
         HeaderTypes,
         QueryParamTypes,
+        RequestContent,
         RequestData,
+        RequestFiles,
     )
 
 
@@ -63,9 +61,9 @@ class KookitHTTPResponse:
             method=method,
             params=request_params,
             headers=request_headers,
-            content=cast(RequestContent | None, none_if_ellipsis(request_content)),
+            content=none_if_ellipsis(request_content),  # type: ignore[arg-type]
             data=none_if_ellipsis(request_data),
-            files=cast(RequestFiles | None, none_if_ellipsis(request_files)),
+            files=none_if_ellipsis(request_files),  # type: ignore[arg-type]
             json=json_loads(json_dumps(none_if_ellipsis(request_json), cls=UUIDEncoder)),
         )
 
