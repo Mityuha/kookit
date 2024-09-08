@@ -97,14 +97,25 @@ class ResponseGroup:
             return False
 
         req = self.response.request
+        content_specified: Final = self.response.content_specified
 
-        if req.content and req.content != request.content:
+        if content_specified and req.content != request.content:
             logger.trace(f"{self}: Expected body: '{req.content!r}', got: '{request.content!r}'")
             return False
 
-        if req.headers and not all(it in request.headers.items() for it in req.headers.items()):
+        def cmp_header(key: str, _: str) -> bool:
+            ignored_keys: set[str] = {"content-length"}
+            if not content_specified and (key in ignored_keys):
+                return False
+            return True
+
+        if req.headers and not all(
+            it in request.headers.items() for it in req.headers.items() if cmp_header(*it)
+        ):
+            missed_headers = set(req.headers.items()).difference(set(request.headers.items()))
             logger.trace(
-                f"{self}: Expected headers: {dict(req.headers)}, got: {dict(request.headers)}",
+                f"{self}: Expected headers: {dict(req.headers)}, got: {dict(request.headers)}. "
+                f"Missed headers: {missed_headers}",
             )
             return False
 
