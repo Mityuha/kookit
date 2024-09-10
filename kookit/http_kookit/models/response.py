@@ -7,9 +7,12 @@ from typing import TYPE_CHECKING, Any, Final, Mapping
 from httpx import URL, Request, Response
 
 from kookit.utils import UUIDEncoder
+from .utils import none_if_ellipsis
 
 
 if TYPE_CHECKING:
+    from types import EllipsisType
+
     from httpx._types import (
         HeaderTypes,
         QueryParamTypes,
@@ -44,23 +47,29 @@ class KookitHTTPResponse:
         # Request matchers here
         request_params: QueryParamTypes | None = None,
         request_headers: HeaderTypes | None = None,
-        request_content: RequestContent | None = None,
-        request_data: RequestData | None = None,
-        request_files: RequestFiles | None = None,
-        request_json: Any | None = None,
+        request_content: RequestContent | None | EllipsisType = ...,
+        request_data: RequestData | None | EllipsisType = ...,
+        request_files: RequestFiles | None | EllipsisType = ...,
+        request_json: Any | None | EllipsisType = ...,
     ) -> None:
+        self.content_specified: Final = any(
+            item is not Ellipsis
+            for item in (request_content, request_data, request_files, request_json)
+        )
         request = Request(
             url=url,
             method=method,
             params=request_params,
             headers=request_headers,
-            content=request_content,
-            data=request_data,
-            files=request_files,
-            json=json_loads(json_dumps(request_json, cls=UUIDEncoder)),
+            content=none_if_ellipsis(request_content),  # type: ignore[arg-type]
+            data=none_if_ellipsis(request_data),
+            files=none_if_ellipsis(request_files),  # type: ignore[arg-type]
+            json=json_loads(json_dumps(none_if_ellipsis(request_json), cls=UUIDEncoder)),
         )
+
         if request_headers:
             request_headers = request.headers  # lowercase headers' keys
+
         response: Response = Response(
             status_code=status_code,
             extensions={"http_version": http_version.encode("ascii")},
